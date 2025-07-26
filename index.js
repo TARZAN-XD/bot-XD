@@ -2,8 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const qrCode = require('qrcode');
-const axios = require('axios');
 const moment = require('moment-timezone');
+const axios = require('axios');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -14,11 +14,10 @@ const {
 const app = express();
 const PORT = process.env.PORT || 10000;
 const PASSWORD = 'tarzanbot';
-const sessions = {};
+const sessions = {}; // تخزين الجلسات
+const sessionData = []; // لتخزين بيانات الجلسات مع الموقع
 const msgStore = new Map();
-const sessionMeta = {}; // ✅ تخزين معلومات إضافية لكل جلسة
 
-// ✅ واجهة المستخدم
 app.use(express.static('public'));
 app.use(express.json());
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -33,8 +32,24 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
-// ✅ دالة تشغيل الجلسة
-async function startSession(sessionId, res, ipInfo) {
+// ✅ دالة لجلب بيانات الموقع من IP
+async function getLocation() {
+  try {
+    const res = await axios.get('https://ipapi.co/json/');
+    return {
+      ip: res.data.ip,
+      country: res.data.country_name || 'غير معروف',
+      lat: res.data.latitude || 0,
+      lng: res.data.longitude || 0
+    };
+  } catch (err) {
+    console.error('خطأ في جلب الموقع:', err.message);
+    return { ip: 'غير معروف', country: 'غير معروف', lat: 0, lng: 0 };
+  }
+}
+
+// ✅ تشغيل الجلسة
+async function startSession(sessionId, res) {
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
   fs.mkdirSync(sessionPath, { recursive: true });
 
@@ -50,16 +65,13 @@ async function startSession(sessionId, res, ipInfo) {
 
   sessions[sessionId] = sock;
 
-  // ✅ حفظ معلومات الجلسة (IP + الدولة + الإحداثيات)
-  if (ipInfo) {
-    sessionMeta[sessionId] = {
-      ip: ipInfo.ip || 'غير معروف',
-      country: ipInfo.country_name || 'غير معروف',
-      lat: ipInfo.latitude || 0,
-      lng: ipInfo.longitude || 0,
-      createdAt: moment().tz("Asia/Riyadh").format("YYYY-MM-DD HH:mm:ss")
-    };
-  }
+  // حفظ بيانات الجلسة مع الموقع
+  const location = await getLocation();
+  const sessionInfo = {
+    name: sessionId,
+    ...location
+  };
+  sessionData.push(sessionInfo);
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -77,7 +89,8 @@ async function startSession(sessionId, res, ipInfo) {
       if (shouldReconnect) startSession(sessionId);
       else {
         delete sessions[sessionId];
-        delete sessionMeta[sessionId];
+        const index = sessionData.findIndex(s => s.name === sessionId);
+        if (index !== -1) sessionData.splice(index, 1);
       }
     }
 
@@ -171,44 +184,28 @@ async function startSession(sessionId, res, ipInfo) {
   });
 }
 
-// ✅ API لإنشاء جلسة مع تخزين IP + الدولة
-app.post('/create-session', async (req, res) => {
+// ✅ API Endpoints
+app.post('/create-session', (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
   if (sessions[sessionId]) return res.json({ message: 'الجلسة موجودة مسبقاً' });
-
-  try {
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    const geoResponse = await axios.get(`https://ipapi.co/${ip}/json/`);
-    startSession(sessionId, res, geoResponse.data);
-  } catch (err) {
-    console.error('❌ فشل جلب بيانات IP:', err.message);
-    startSession(sessionId, res, {});
-  }
+  startSession(sessionId, res);
 });
 
-// ✅ API لعرض أسماء الجلسات فقط
+// ✅ إرجاع الجلسات مع بيانات الموقع
 app.get('/sessions', (req, res) => {
-  res.json(Object.keys(sessions));
+  res.json(sessionData);
 });
 
-// ✅ API جديد لإرجاع معلومات الجلسات مع المواقع الجغرافية
-app.get('/sessions-info', (req, res) => {
-  const data = Object.keys(sessionMeta).map(id => ({
-    sessionId: id,
-    ...sessionMeta[id]
-  }));
-  res.json(data);
-});
-
-// ✅ حذف الجلسة
 app.post('/delete-session', (req, res) => {
   const { sessionId, password } = req.body;
   if (password !== PASSWORD) return res.json({ error: 'كلمة المرور غير صحيحة' });
   if (!sessions[sessionId]) return res.json({ error: 'الجلسة غير موجودة' });
 
   delete sessions[sessionId];
-  delete sessionMeta[sessionId];
+  const index = sessionData.findIndex(s => s.name === sessionId);
+  if (index !== -1) sessionData.splice(index, 1);
+
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
   fs.rmSync(sessionPath, { recursive: true, force: true });
 
