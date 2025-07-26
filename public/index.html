@@ -17,8 +17,8 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      padding: 20px;
       flex-direction: column;
+      padding: 20px;
     }
     .container {
       width: 100%;
@@ -28,7 +28,7 @@
       border-radius: 12px;
       box-shadow: 0 8px 25px rgba(0,0,0,0.6);
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     h1 {
       margin-bottom: 15px;
@@ -94,40 +94,27 @@
       background: #dc2626;
     }
 
-    /* ✅ تصميم المربع السفلي للكرة الأرضية */
-    .globe-container {
+    /* 🌍 قسم الكرة الأرضية */
+    #globe-container {
       width: 100%;
-      max-width: 800px;
-      height: 400px;
-      background: #0f172a;
+      max-width: 900px;
+      height: 500px;
+      background: rgba(0,0,0,0.4);
       border-radius: 15px;
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 30px rgba(56, 189, 248, 0.7);
-      display: flex;
-      justify-content: center;
-      align-items: center;
       margin-top: 20px;
-      overflow: hidden;
       position: relative;
+      overflow: hidden;
     }
-    #globeViz {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* ✅ نافذة التفاصيل عند الضغط على النقطة */
-    .info-box {
+    #info-box {
       position: absolute;
-      top: 10px;
+      bottom: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.8);
-      padding: 15px;
-      border-radius: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 8px;
       color: #fff;
       display: none;
-      z-index: 10;
-      width: 250px;
-      border: 1px solid #38bdf8;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -137,24 +124,23 @@
 
     <input type="text" id="sessionId" placeholder="أدخل اسم الجلسة">
     <button onclick="createSession()">إنشاء الجلسة</button>
-    <button onclick="loadSessions()">عرض الجلسات النشطة</button>
 
     <div class="qr-container" id="qrContainer"></div>
 
     <div class="sessions-list">
       <h2>الجلسات النشطة:</h2>
       <div id="sessions"></div>
+      <button style="margin-top:10px;background:#22c55e;" onclick="loadSessions()">🔄 تحديث الجلسات</button>
     </div>
   </div>
 
-  <!-- ✅ المربع السفلي للكرة الأرضية -->
-  <div class="globe-container">
-    <div class="info-box" id="infoBox"></div>
-    <div id="globeViz"></div>
+  <!-- 🌍 الكرة الأرضية -->
+  <div id="globe-container">
+    <div id="info-box"></div>
   </div>
 
-  <!-- ✅ مكتبات Three.js و Globe.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <!-- مكتبات العرض -->
+  <script src="https://unpkg.com/three"></script>
   <script src="https://unpkg.com/globe.gl"></script>
 
   <script>
@@ -190,11 +176,12 @@
       sessions.forEach(s => {
         container.innerHTML += `
           <div class="session-item">
-            <span>${s}</span>
-            <button class="delete-btn" onclick="deleteSession('${s}')">حذف</button>
+            <span>${s.name} (${s.country || 'غير معروف'})</span>
+            <button class="delete-btn" onclick="deleteSession('${s.name}')">حذف</button>
           </div>
         `;
       });
+      updateGlobe(sessions);
     }
 
     async function deleteSession(sessionId) {
@@ -212,47 +199,25 @@
       loadSessions();
     }
 
-    loadSessions();
-
-    // ✅ الكرة الأرضية + النقاط
-    const Globe = new window.Globe()
-      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-      .backgroundColor('#000')
+    // 🌍 تهيئة الكرة الأرضية
+    const globe = Globe()
+      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-dark.jpg')
+      .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+      .pointOfView({ lat: 20, lng: 0, altitude: 2 })
+      .pointLat('lat')
+      .pointLng('lng')
+      .pointColor(() => 'red')
       .pointAltitude(0.02)
-      .pointColor(() => '#38bdf8');
+      .pointLabel(p => `${p.name} - ${p.country}`);
 
-    const rendererContainer = document.getElementById('globeViz');
-    Globe(rendererContainer);
+    const globeContainer = document.getElementById('globe-container');
+    globe(globeContainer);
 
-    // ✅ جلب الجلسات وعرض النقاط
-    async function loadGlobeData() {
-      const res = await fetch(`${API_BASE}/sessions-info`);
-      const data = await res.json();
-      const globeData = data.map(session => ({
-        lat: session.lat,
-        lng: session.lng,
-        size: 0.3,
-        color: '#38bdf8',
-        sessionId: session.sessionId,
-        country: session.country,
-        ip: session.ip
-      }));
-      Globe.pointsData(globeData).onPointClick(showInfo);
+    function updateGlobe(sessions) {
+      globe.pointsData(sessions);
     }
 
-    function showInfo(point) {
-      const infoBox = document.getElementById('infoBox');
-      infoBox.innerHTML = `
-        <h3>📌 تفاصيل الجلسة</h3>
-        <p><b>الجلسة:</b> ${point.sessionId}</p>
-        <p><b>الدولة:</b> ${point.country}</p>
-        <p><b>IP:</b> ${point.ip}</p>
-      `;
-      infoBox.style.display = 'block';
-    }
-
-    loadGlobeData();
+    loadSessions();
   </script>
 </body>
 </html>
