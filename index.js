@@ -156,6 +156,23 @@ async function startSession(sessionId, res) {
     const msgId = msg.key.id;
     msgStore.set(`${from}_${msgId}`, msg);
 
+    // ** إضافة التعامل مع ردود قائمة ListResponseMessage **
+    if (msg.mtype === 'listResponseMessage') {
+      const selected = msg.message.listResponseMessage.singleSelectReply.selectedRowId;
+      console.log("✅ المستخدم اختار:", selected);
+
+      if (selected === "menu_video") {
+        await sock.sendMessage(from, { text: "🎥 خيار تحميل الفيديو قادم قريبًا..." });
+      } else if (selected === "menu_music") {
+        await sock.sendMessage(from, { text: "🎵 خيار تحميل الموسيقى قادم قريبًا..." });
+      } else if (selected === "menu_images") {
+        await sock.sendMessage(from, { text: "🖼 سيتم إرسال صور عشوائية لك لاحقًا..." });
+      } else if (selected === "menu_info") {
+        await sock.sendMessage(from, { text: "ℹ هذا بوت واتساب تم تطويره باستخدام Baileys" });
+      }
+      return; // لمنع تنفيذ بقية الأوامر على نفس الرسالة
+    }
+
     const text = msg.message.conversation ||
                  msg.message.extendedTextMessage?.text ||
                  msg.message.buttonsResponseMessage?.selectedButtonId;
