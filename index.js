@@ -25,9 +25,9 @@ fs.readdirSync(commandsPath).forEach(file => {
     }
 });
 
-// ✅ تخزين الرسائل لمنع الحذف
 const msgStore = new Map();
-let sock; // لتخزين الجلسة النشطة
+let sock; // الجلسة النشطة
+let sessionIdCustom = null; // معرف الجلسة من المستخدم
 
 const startSock = async () => {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info'); // الجلسة الدائمة
@@ -60,28 +60,33 @@ const startSock = async () => {
             console.log('✅ تم الاتصال بواتساب بنجاح');
 
             const selfId = sock.user.id.split(':')[0] + "@s.whatsapp.net";
-            const sessionIdText = sock.sessionIdCustom || 'غير محدد';
 
-            await sock.sendMessage(selfId, {
-                image: { url: 'https://b.top4top.io/p_3489wk62d0.jpg' },
-                caption: `✨ *مرحباً بك في بوت طرزان الواقدي* ✨
+            const welcomeMessage = `✨ *مرحباً بك في بوت طرزان الواقدي* ✨
 
 ✅ *تم ربط الجلسة بنجاح!*  
-🔑 *معرف الجلسة:* \`${sessionIdText}\`
+🔑 *معرف الجلسة:* \`${sessionIdCustom || 'غير محدد'}\`
 
 🧠 *أوامر مقترحة:*  
 ━━━━━━━━━━━━━━━  
 • *tarzan* ⬅️ لعرض جميع الأوامر الجاهزة  
 ━━━━━━━━━━━━━━━  
 
-⚡ *استمتع بالتجربة الآن!*`,
-            });
+⚡ *استمتع بالتجربة الآن!*`;
 
-            console.log("📩 تم إرسال رسالة ترحيب فخمة للرقم المرتبط.");
+            await sock.sendMessage(selfId, {
+                image: { url: 'https://b.top4top.io/p_3489wk62d0.jpg' },
+                caption: welcomeMessage,
+                footer: "🤖 طرزان الواقدي - بوت الذكاء الاصطناعي ⚔️",
+                buttons: [
+                    { buttonId: "help", buttonText: { displayText: "📋 عرض الأوامر" }, type: 1 },
+                    { buttonId: "menu", buttonText: { displayText: "📦 قائمة الميزات" }, type: 1 }
+                ],
+                headerType: 4
+            });
         }
     });
 
-    // ✅ منع الحذف
+    // منع حذف الرسائل
     sock.ev.on('messages.update', async updates => {
         for (const { key, update } of updates) {
             if (update?.message === null && key?.remoteJid && !key.fromMe) {
@@ -113,7 +118,7 @@ const startSock = async () => {
         }
     });
 
-    // 📥 استقبال الأوامر
+    // استقبال الأوامر
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg?.message) return;
@@ -152,26 +157,30 @@ const startSock = async () => {
 
 startSock();
 
-// ✅ API لطلب رمز Pairing Code مع إدخال معرف الجلسة
+// ✅ API لطلب رمز Pairing Code
 app.post('/pair', async (req, res) => {
     try {
         const { number, sessionId } = req.body;
-        if (!number || !sessionId) {
-            return res.status(400).json({ error: 'يرجى إدخال الرقم ومعرف الجلسة' });
-        }
+        if (!number || !sessionId) return res.status(400).json({ error: 'يرجى إدخال الرقم ومعرف الجلسة' });
+
+        sessionIdCustom = sessionId; // حفظ المعرف
         if (!sock || sock.authState.creds.registered) {
             return res.status(400).json({ error: 'الجهاز مرتبط بالفعل' });
         }
         const code = await sock.requestPairingCode(number.trim());
-
-        // حفظ معرف الجلسة في البوت
-        sock.sessionIdCustom = sessionId;
-
         return res.json({ pairingCode: code });
     } catch (err) {
         console.error('❌ خطأ في توليد الرمز:', err);
         res.status(500).json({ error: 'فشل في إنشاء الرمز' });
     }
+});
+
+// ✅ API لعرض حالة الجلسة
+app.get('/sessions', (req, res) => {
+    if (sock && sock.user) {
+        return res.json([{ connected: true, id: sock.user.id, customId: sessionIdCustom || 'غير محدد' }]);
+    }
+    return res.json([]);
 });
 
 app.listen(PORT, () => {
