@@ -31,7 +31,7 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
-// ✅ إنشاء جلسة QR
+// ✅ تشغيل جلسة جديدة عبر QR
 async function startSession(sessionId, res) {
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
   fs.mkdirSync(sessionPath, { recursive: true });
@@ -49,6 +49,7 @@ async function startSession(sessionId, res) {
   sessions[sessionId] = sock;
   sock.ev.on('creds.update', saveCreds);
 
+  // ✅ متابعة حالة الاتصال
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
 
@@ -155,38 +156,7 @@ async function startSession(sessionId, res) {
   });
 }
 
-// ✅ نظام Pairing Code مستقل عن QR
-async function startPairingSession(sessionId, number, res) {
-  try {
-    const sessionPath = path.join(__dirname, 'sessions', sessionId);
-    fs.mkdirSync(sessionPath, { recursive: true });
-
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const { version } = await fetchLatestBaileysVersion();
-
-    const sock = makeWASocket({
-      version,
-      auth: state,
-      printQRInTerminal: false,
-      generateHighQualityLinkPreview: true
-    });
-
-    sessions[sessionId] = sock;
-    sock.ev.on('creds.update', saveCreds);
-
-    if (!sock.authState.creds.registered) {
-      const code = await sock.requestPairingCode(number);
-      return res.json({ pairingCode: code });
-    } else {
-      return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
-    }
-  } catch (err) {
-    console.error('❌ خطأ في توليد رمز الاقتران:', err);
-    res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
-  }
-}
-
-// ✅ API Endpoints
+// ✅ API لإنشاء جلسة QR
 app.post('/create-session', (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
@@ -194,17 +164,12 @@ app.post('/create-session', (req, res) => {
   startSession(sessionId, res);
 });
 
-app.post('/generate-pairing', (req, res) => {
-  const { sessionId, number } = req.body;
-  if (!sessionId || !number) return res.json({ error: 'أدخل sessionId ورقم الهاتف' });
-  if (sessions[sessionId]) return res.json({ error: 'الجلسة موجودة بالفعل' });
-  startPairingSession(sessionId, number, res);
-});
-
+// ✅ API لعرض الجلسات
 app.get('/sessions', (req, res) => {
   res.json(Object.keys(sessions));
 });
 
+// ✅ API لحذف جلسة
 app.post('/delete-session', (req, res) => {
   const { sessionId, password } = req.body;
   if (password !== PASSWORD) return res.json({ error: 'كلمة المرور غير صحيحة' });
@@ -215,6 +180,45 @@ app.post('/delete-session', (req, res) => {
   fs.rmSync(sessionPath, { recursive: true, force: true });
 
   res.json({ message: `تم حذف الجلسة ${sessionId} بنجاح` });
+});
+
+// ✅ API لتوليد Pairing Code بدون QR
+app.post('/generate-pairing', async (req, res) => {
+  try {
+    const { sessionId, number } = req.body;
+    if (!sessionId || !number) return res.status(400).json({ error: 'أدخل sessionId والرقم' });
+
+    let sock = sessions[sessionId];
+
+    if (!sock) {
+      const sessionPath = path.join(__dirname, 'sessions', sessionId);
+      fs.mkdirSync(sessionPath, { recursive: true });
+
+      const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+      const { version } = await fetchLatestBaileysVersion();
+
+      sock = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['PairCodeBot', 'Chrome', '1.0.0']
+      });
+
+      sessions[sessionId] = sock;
+      sock.ev.on('creds.update', saveCreds);
+    }
+
+    if (sock.authState.creds.registered) {
+      return res.json({ error: 'هذه الجلسة مرتبطة بالفعل' });
+    }
+
+    const code = await sock.requestPairingCode(number.trim());
+    return res.json({ pairingCode: code });
+
+  } catch (err) {
+    console.error('❌ خطأ في توليد رمز الاقتران:', err);
+    res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
+  }
 });
 
 app.listen(PORT, () => {
