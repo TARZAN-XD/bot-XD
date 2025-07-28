@@ -60,28 +60,21 @@ const startSock = async () => {
             console.log('✅ تم الاتصال بواتساب بنجاح');
 
             const selfId = sock.user.id.split(':')[0] + "@s.whatsapp.net";
-            const sessionId = sock.user.id;
+            const sessionIdText = sock.sessionIdCustom || 'غير محدد';
 
-            const welcomeMessage =
-`✨ *مرحباً بك في بوت طرزان الواقدي* ✨
+            await sock.sendMessage(selfId, {
+                image: { url: 'https://b.top4top.io/p_3489wk62d0.jpg' },
+                caption: `✨ *مرحباً بك في بوت طرزان الواقدي* ✨
 
 ✅ *تم ربط الجلسة بنجاح!*  
-🔑 *معرف الجلسة:* \`${sessionId}\`
+🔑 *معرف الجلسة:* \`${sessionIdText}\`
 
 🧠 *أوامر مقترحة:*  
 ━━━━━━━━━━━━━━━  
 • *tarzan* ⬅️ لعرض جميع الأوامر الجاهزة  
 ━━━━━━━━━━━━━━━  
 
-⚡ *استمتع بالتجربة الآن!*`;
-
-            await sock.sendMessage(selfId, {
-                text: welcomeMessage,
-                footer: "🤖 طرزان الواقدي - بوت الذكاء الاصطناعي ⚔️",
-                buttons: [
-                    { buttonId: "tarzan", buttonText: { displayText: "📋 عرض الأوامر" }, type: 1 }
-                ],
-                headerType: 1
+⚡ *استمتع بالتجربة الآن!*`,
             });
 
             console.log("📩 تم إرسال رسالة ترحيب فخمة للرقم المرتبط.");
@@ -159,15 +152,21 @@ const startSock = async () => {
 
 startSock();
 
-// ✅ API لطلب رمز Pairing Code
+// ✅ API لطلب رمز Pairing Code مع إدخال معرف الجلسة
 app.post('/pair', async (req, res) => {
     try {
-        const { number } = req.body;
-        if (!number) return res.status(400).json({ error: 'يرجى إدخال الرقم' });
+        const { number, sessionId } = req.body;
+        if (!number || !sessionId) {
+            return res.status(400).json({ error: 'يرجى إدخال الرقم ومعرف الجلسة' });
+        }
         if (!sock || sock.authState.creds.registered) {
             return res.status(400).json({ error: 'الجهاز مرتبط بالفعل' });
         }
         const code = await sock.requestPairingCode(number.trim());
+
+        // حفظ معرف الجلسة في البوت
+        sock.sessionIdCustom = sessionId;
+
         return res.json({ pairingCode: code });
     } catch (err) {
         console.error('❌ خطأ في توليد الرمز:', err);
