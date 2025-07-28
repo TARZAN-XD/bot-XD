@@ -1,3 +1,8 @@
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const qrCode = require('qrcode');
+const moment = require('moment-timezone');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -5,20 +10,18 @@ const {
   fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const qrCode = require('qrcode');
-const moment = require('moment-timezone');
-
 const app = express();
 const PORT = process.env.PORT || 10000;
+const PASSWORD = 'tarzanbot';
+const sessions = {};
+const msgStore = new Map();
 
-app.use(express.json());
+// ✅ تحميل الواجهة
 app.use(express.static('public'));
+app.use(express.json());
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// ✅ تحميل الأوامر من مجلد commands
+// ✅ تحميل الأوامر
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 fs.readdirSync(commandsPath).forEach(file => {
@@ -28,54 +31,60 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
-// ✅ تخزين الرسائل لمنع الحذف
-const msgStore = new Map();
-let sock; // لتخزين الجلسة النشطة
+// ✅ تشغيل جلسة جديدة
+async function startSession(sessionId, res) {
+  const sessionPath = path.join(__dirname, 'sessions', sessionId);
+  fs.mkdirSync(sessionPath, { recursive: true });
 
-const startSock = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
   const { version } = await fetchLatestBaileysVersion();
 
-  sock = makeWASocket({
+  const sock = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: false,
     generateHighQualityLinkPreview: true
   });
 
+  sessions[sessionId] = sock;
   sock.ev.on('creds.update', saveCreds);
 
+  // ✅ متابعة حالة الاتصال
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
 
-    if (qr) {
-      await qrCode.toFile('./public/qr.png', qr).catch(err => console.error('QR Error:', err));
-      console.log('✅ تم حفظ رمز QR في ./public/qr.png');
+    if (qr && res) {
+      const qrData = await qrCode.toDataURL(qr);
+      res.json({ qr: qrData });
+      res = null;
     }
 
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-      console.log('📴 تم قطع الاتصال. إعادة الاتصال:', shouldReconnect);
-      if (shouldReconnect) startSock();
+      if (shouldReconnect) startSession(sessionId);
+      else delete sessions[sessionId];
     }
 
     if (connection === 'open') {
-      console.log('✅ تم الاتصال بواتساب بنجاح');
+      console.log(`✅ جلسة ${sessionId} متصلة`);
 
       const selfId = sock.user.id.split(':')[0] + "@s.whatsapp.net";
+
+      const caption = `✨ *مرحباً بك في بوت طرزان الواقدي* ✨
+
+✅ *تم ربط الجلسة بنجاح!*  
+🔑 *معرف الجلسة:* \`${sessionId}\`
+
+🧠 *أوامر مقترحة:*  
+━━━━━━━━━━━━━━━  
+• *tarzan* ⬅️ لعرض جميع الأوامر الجاهزة  
+━━━━━━━━━━━━━━━  
+
+⚡ *استمتع بالتجربة الآن!*`;
+
       await sock.sendMessage(selfId, {
         image: { url: 'https://b.top4top.io/p_3489wk62d0.jpg' },
-        caption: `✨ *مرحباً بك في بوت طرزان الواقدي* ✨
-
-✅ تم ربط الرقم بنجاح.
-
-🧠 *أوامر مقترحة:*
-• *video* لتحميل الفيديوهات
-• *mp3* لتحويل الصوتيات
-• *insta* لتحميل من انستجرام
-• *help* لعرض جميع الأوامر
-
-⚡ استمتع بالتجربة!`,
+        caption: caption,
         footer: "🤖 طرزان الواقدي - بوت الذكاء الاصطناعي ⚔️",
         buttons: [
           { buttonId: "help", buttonText: { displayText: "📋 عرض الأوامر" }, type: 1 },
@@ -83,8 +92,6 @@ const startSock = async () => {
         ],
         headerType: 4
       });
-
-      console.log("📩 تم إرسال رسالة ترحيب فخمة للرقم المرتبط.");
     }
   });
 
@@ -103,20 +110,8 @@ const startSock = async () => {
           const type = Object.keys(stored.message)[0];
           const time = moment().tz("Asia/Riyadh").format("YYYY-MM-DD HH:mm:ss");
 
-          const infoMessage =
-`🚫 *تم حذف رسالة!*
-👤 *الاسم:* ${name}
-📱 *الرقم:* wa.me/${number}
-🕒 *الوقت:* ${time}
-📂 *نوع الرسالة:* ${type}`;
-
-          fs.appendFileSync('./deleted_messages.log',
-            `🧾 حذف من: ${name} - wa.me/${number} - ${type} - ${time}\n==========================\n`
-          );
-
-          await sock.sendMessage(selfId, { text: infoMessage });
+          await sock.sendMessage(selfId, { text: `🚫 *تم حذف رسالة!*\n👤 *الاسم:* ${name}\n📱 *الرقم:* wa.me/${number}\n🕒 *الوقت:* ${time}\n📂 *نوع الرسالة:* ${type}` });
           await sock.sendMessage(selfId, { forward: stored });
-
         } catch (err) {
           console.error('❌ خطأ في منع الحذف:', err.message);
         }
@@ -124,7 +119,7 @@ const startSock = async () => {
     }
   });
 
-  // 📥 استقبال الأوامر
+  // ✅ استقبال الرسائل وتنفيذ الأوامر
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg?.message) return;
@@ -159,23 +154,47 @@ const startSock = async () => {
       }
     }
   });
-};
+}
 
-startSock();
+// ✅ API Endpoints
+app.post('/create-session', (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
+  if (sessions[sessionId]) return res.json({ message: 'الجلسة موجودة مسبقاً' });
+  startSession(sessionId, res);
+});
 
-// ✅ API لطلب رمز Pairing Code
-app.post('/pair', async (req, res) => {
+app.get('/sessions', (req, res) => {
+  res.json(Object.keys(sessions));
+});
+
+app.post('/delete-session', (req, res) => {
+  const { sessionId, password } = req.body;
+  if (password !== PASSWORD) return res.json({ error: 'كلمة المرور غير صحيحة' });
+  if (!sessions[sessionId]) return res.json({ error: 'الجلسة غير موجودة' });
+
+  delete sessions[sessionId];
+  const sessionPath = path.join(__dirname, 'sessions', sessionId);
+  fs.rmSync(sessionPath, { recursive: true, force: true });
+
+  res.json({ message: `تم حذف الجلسة ${sessionId} بنجاح` });
+});
+
+// ✅ API لتوليد رمز الاقتران Pairing Code
+app.post('/generate-pairing', async (req, res) => {
   try {
-    const { number } = req.body;
-    if (!number) return res.status(400).json({ error: 'يرجى إدخال الرقم' });
-    if (!sock || sock.authState.creds.registered) {
-      return res.status(400).json({ error: 'الجهاز مرتبط بالفعل' });
-    }
+    const { sessionId, number } = req.body;
+    if (!sessionId || !number) return res.status(400).json({ error: 'أدخل sessionId والرقم' });
+
+    const sock = sessions[sessionId];
+    if (!sock) return res.status(404).json({ error: 'الجلسة غير موجودة أو غير مفعلة' });
+    if (sock.authState.creds.registered) return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
+
     const code = await sock.requestPairingCode(number.trim());
     return res.json({ pairingCode: code });
   } catch (err) {
-    console.error('❌ خطأ في توليد الرمز:', err);
-    res.status(500).json({ error: 'فشل في إنشاء الرمز' });
+    console.error('❌ خطأ في توليد رمز الاقتران:', err);
+    res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
   }
 });
 
