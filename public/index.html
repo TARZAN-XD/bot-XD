@@ -38,15 +38,6 @@
         text-shadow: 0 0 15px #00ff9d;
     }
 
-    img#qr {
-        width: 250px;
-        height: 250px;
-        margin: 20px auto;
-        display: none;
-        border: 2px solid #00ff9d;
-        border-radius: 10px;
-    }
-
     .status {
         font-size: 18px;
         margin: 10px 0;
@@ -79,16 +70,6 @@
 
     button:hover {
         background: #00cc7d;
-    }
-
-    .code-box {
-        margin-top: 15px;
-        padding: 10px;
-        background: #111;
-        border: 1px solid #00ff9d;
-        border-radius: 5px;
-        font-size: 18px;
-        display: none;
     }
 
     footer {
@@ -177,10 +158,8 @@
 <div class="container">
     <h1>⚡ طرزان الواقدي ⚡</h1>
     <p class="status">🔍 حالة الجلسة: <span id="sessionStatus">جاري التحقق...</span></p>
-    <img id="qr" src="/qr.png" alt="QR Code">
 
     <div>
-        <button onclick="reloadQR()">🔄 إعادة تحميل QR</button>
         <button onclick="deleteSession()">🗑 حذف الجلسة</button>
     </div>
 
@@ -244,14 +223,11 @@ async function checkSession() {
         const res = await fetch('/sessions');
         const sessions = await res.json();
         const statusEl = document.getElementById('sessionStatus');
-        const qrEl = document.getElementById('qr');
 
         if (sessions.length > 0) {
             statusEl.textContent = "✅ الجلسة متصلة";
-            qrEl.style.display = "none";
         } else {
             statusEl.textContent = "❌ غير متصل";
-            qrEl.style.display = "block";
         }
     } catch {
         document.getElementById('sessionStatus').textContent = "⚠️ خطأ في التحقق";
@@ -259,11 +235,6 @@ async function checkSession() {
 }
 checkSession();
 setInterval(checkSession, 5000);
-
-// إعادة تحميل QR
-function reloadQR() {
-    document.getElementById('qr').src = '/qr.png?' + Date.now();
-}
 
 // حذف الجلسة
 async function deleteSession() {
