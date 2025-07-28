@@ -31,7 +31,7 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
-// ✅ تشغيل جلسة جديدة
+// ✅ إنشاء جلسة QR
 async function startSession(sessionId, res) {
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
   fs.mkdirSync(sessionPath, { recursive: true });
@@ -49,7 +49,6 @@ async function startSession(sessionId, res) {
   sessions[sessionId] = sock;
   sock.ev.on('creds.update', saveCreds);
 
-  // ✅ متابعة حالة الاتصال
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
 
@@ -156,12 +155,50 @@ async function startSession(sessionId, res) {
   });
 }
 
+// ✅ نظام Pairing Code مستقل عن QR
+async function startPairingSession(sessionId, number, res) {
+  try {
+    const sessionPath = path.join(__dirname, 'sessions', sessionId);
+    fs.mkdirSync(sessionPath, { recursive: true });
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    const { version } = await fetchLatestBaileysVersion();
+
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      generateHighQualityLinkPreview: true
+    });
+
+    sessions[sessionId] = sock;
+    sock.ev.on('creds.update', saveCreds);
+
+    if (!sock.authState.creds.registered) {
+      const code = await sock.requestPairingCode(number);
+      return res.json({ pairingCode: code });
+    } else {
+      return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
+    }
+  } catch (err) {
+    console.error('❌ خطأ في توليد رمز الاقتران:', err);
+    res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
+  }
+}
+
 // ✅ API Endpoints
 app.post('/create-session', (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
   if (sessions[sessionId]) return res.json({ message: 'الجلسة موجودة مسبقاً' });
   startSession(sessionId, res);
+});
+
+app.post('/generate-pairing', (req, res) => {
+  const { sessionId, number } = req.body;
+  if (!sessionId || !number) return res.json({ error: 'أدخل sessionId ورقم الهاتف' });
+  if (sessions[sessionId]) return res.json({ error: 'الجلسة موجودة بالفعل' });
+  startPairingSession(sessionId, number, res);
 });
 
 app.get('/sessions', (req, res) => {
@@ -178,33 +215,6 @@ app.post('/delete-session', (req, res) => {
   fs.rmSync(sessionPath, { recursive: true, force: true });
 
   res.json({ message: `تم حذف الجلسة ${sessionId} بنجاح` });
-});
-
-// ✅ API لتوليد رمز الاقتران Pairing Code
-app.post('/generate-pairing', async (req, res) => {
-  try {
-    const { sessionId, number } = req.body;
-    if (!sessionId || !number) {
-      return res.status(400).json({ error: 'أدخل sessionId والرقم' });
-    }
-
-    const sock = sessions[sessionId];
-    if (!sock) {
-      return res.status(404).json({ error: 'الجلسة غير موجودة أو غير مفعلة' });
-    }
-
-    if (sock.authState.creds.registered) {
-      return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
-    }
-
-    // ✅ طلب رمز الاقتران
-    const pairingCode = await sock.requestPairingCode(number.trim());
-    return res.json({ pairingCode });
-
-  } catch (err) {
-    console.error('❌ خطأ في توليد رمز الاقتران:', err.message);
-    res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
-  }
 });
 
 app.listen(PORT, () => {
