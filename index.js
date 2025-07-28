@@ -184,16 +184,25 @@ app.post('/delete-session', (req, res) => {
 app.post('/generate-pairing', async (req, res) => {
   try {
     const { sessionId, number } = req.body;
-    if (!sessionId || !number) return res.status(400).json({ error: 'أدخل sessionId والرقم' });
+    if (!sessionId || !number) {
+      return res.status(400).json({ error: 'أدخل sessionId والرقم' });
+    }
 
     const sock = sessions[sessionId];
-    if (!sock) return res.status(404).json({ error: 'الجلسة غير موجودة أو غير مفعلة' });
-    if (sock.authState.creds.registered) return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
+    if (!sock) {
+      return res.status(404).json({ error: 'الجلسة غير موجودة أو غير مفعلة' });
+    }
 
-    const code = await sock.requestPairingCode(number.trim());
-    return res.json({ pairingCode: code });
+    if (sock.authState.creds.registered) {
+      return res.status(400).json({ error: 'الجلسة مرتبطة بالفعل' });
+    }
+
+    // ✅ طلب رمز الاقتران
+    const pairingCode = await sock.requestPairingCode(number.trim());
+    return res.json({ pairingCode });
+
   } catch (err) {
-    console.error('❌ خطأ في توليد رمز الاقتران:', err);
+    console.error('❌ خطأ في توليد رمز الاقتران:', err.message);
     res.status(500).json({ error: 'فشل في إنشاء رمز الاقتران' });
   }
 });
