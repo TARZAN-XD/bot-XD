@@ -99,22 +99,21 @@
     .refresh-btn:hover {
       background: #059669;
     }
-    .pair-section {
-      margin-top: 20px;
-      background: #0f172a;
+    .pair-container {
+      margin-top: 15px;
+      background: #1e293b;
       padding: 15px;
-      border-radius: 10px;
-      text-align: center;
-    }
-    .pair-section h2 {
-      color: #38bdf8;
-      font-size: 20px;
-      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 2px dashed #38bdf8;
     }
     .pair-code {
-      font-size: 18px;
-      color: #10b981;
+      background: #0f172a;
+      padding: 10px;
       margin-top: 10px;
+      border-radius: 8px;
+      font-size: 18px;
+      color: #38bdf8;
+      text-align: center;
     }
   </style>
 </head>
@@ -122,9 +121,18 @@
   <div class="container">
     <h1>إدارة جلسات واتساب</h1>
 
-    <!-- إنشاء جلسة QR -->
+    <!-- إدخال Session -->
     <input type="text" id="sessionId" placeholder="أدخل اسم الجلسة">
-    <button onclick="createSession()">إنشاء الجلسة</button>
+
+    <!-- إنشاء جلسة QR -->
+    <button onclick="createSession()">إنشاء الجلسة (QR)</button>
+
+    <!-- إدخال رقم الهاتف -->
+    <div class="pair-container">
+      <input type="text" id="phoneNumber" placeholder="أدخل رقم الهاتف (مثال: 9665xxxx)">
+      <button onclick="generatePairCode()">طلب رمز الاقتران (Pair)</button>
+      <div id="pairCode" class="pair-code" style="display:none;"></div>
+    </div>
 
     <div class="qr-container" id="qrContainer"></div>
 
@@ -134,19 +142,12 @@
       <h2>الجلسات النشطة:</h2>
       <div id="sessions">لا توجد جلسات حالياً...</div>
     </div>
-
-    <!-- قسم طلب رمز Pair -->
-    <div class="pair-section">
-      <h2>طلب رمز الاقتران (Pair)</h2>
-      <input type="text" id="pairNumber" placeholder="أدخل رقم واتساب">
-      <button onclick="requestPair()">طلب رمز الاقتران</button>
-      <div id="pairCode" class="pair-code"></div>
-    </div>
   </div>
 
   <script>
     const API_BASE = '';
 
+    // ✅ إنشاء الجلسة عبر QR
     async function createSession() {
       const sessionId = document.getElementById('sessionId').value.trim();
       if (!sessionId) return alert('أدخل اسم الجلسة أولاً');
@@ -169,6 +170,30 @@
       }
     }
 
+    // ✅ طلب Pairing Code
+    async function generatePairCode() {
+      const sessionId = document.getElementById('sessionId').value.trim();
+      const phoneNumber = document.getElementById('phoneNumber').value.trim();
+      if (!sessionId || !phoneNumber) return alert('أدخل اسم الجلسة والرقم');
+
+      const res = await fetch(`${API_BASE}/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, number: phoneNumber })
+      });
+
+      const data = await res.json();
+      if (data.pairingCode) {
+        const pairBox = document.getElementById('pairCode');
+        pairBox.style.display = 'block';
+        pairBox.innerHTML = `🔑 رمز الاقتران: <b>${data.pairingCode}</b>`;
+        loadSessions();
+      } else {
+        alert(data.error || 'فشل في إنشاء الرمز');
+      }
+    }
+
+    // ✅ عرض الجلسات
     async function loadSessions() {
       const res = await fetch(`${API_BASE}/sessions`);
       const sessions = await res.json();
@@ -188,6 +213,7 @@
       });
     }
 
+    // ✅ حذف الجلسة
     async function deleteSession(sessionId) {
       const password = prompt('أدخل كلمة المرور لحذف الجلسة:');
       if (!password) return;
@@ -203,27 +229,6 @@
       loadSessions();
     }
 
-    // ✅ طلب رمز Pair
-    async function requestPair() {
-      const number = document.getElementById('pairNumber').value.trim();
-      if (!number) return alert('أدخل الرقم أولاً');
-
-      const res = await fetch(`${API_BASE}/pair`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number })
-      });
-
-      const data = await res.json();
-      const pairDiv = document.getElementById('pairCode');
-      if (data.pairingCode) {
-        pairDiv.innerHTML = `✅ رمز الاقتران الخاص بك: <strong>${data.pairingCode}</strong>`;
-      } else {
-        pairDiv.innerHTML = `❌ ${data.error || 'فشل في طلب الرمز'}`;
-      }
-    }
-
-    // تحميل الجلسات عند فتح الصفحة
     loadSessions();
   </script>
 </body>
