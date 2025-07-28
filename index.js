@@ -4,6 +4,7 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -17,7 +18,7 @@ app.use(express.json());
 app.use(express.static('public'));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// تحميل الأوامر من مجلد commands
+// ✅ تحميل الأوامر من مجلد commands
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 fs.readdirSync(commandsPath).forEach(file => {
@@ -29,7 +30,7 @@ fs.readdirSync(commandsPath).forEach(file => {
 
 // ✅ تخزين الرسائل لمنع الحذف
 const msgStore = new Map();
-let sock; // لتخزين السوكيت حتى نستخدمه في الـ API
+let sock; // لتخزين الجلسة النشطة
 
 const startSock = async () => {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
