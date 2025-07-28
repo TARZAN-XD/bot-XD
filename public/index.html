@@ -1,133 +1,217 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>بوت طرزان الواقدي - لوحة التحكم</title>
+<title>طرزان الواقدي | نظام الإقتران</title>
 <style>
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Tajawal', sans-serif;
-    background: linear-gradient(135deg, #1a1a1a, #0f2027, #203a43, #2c5364);
-    background-size: 400% 400%;
-    animation: gradientBG 10s ease infinite;
-    color: #fff;
-    text-align: center;
-  }
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Courier New', monospace;
+        background: #000;
+        color: #00ff9d;
+        text-align: center;
+        overflow: hidden;
+    }
 
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+    canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+    }
 
-  header {
-    padding: 20px;
-    font-size: 28px;
-    font-weight: bold;
-    color: #f1c40f;
-    text-shadow: 2px 2px 5px #000;
-  }
+    .container {
+        max-width: 500px;
+        margin: 50px auto;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 20px;
+        border-radius: 15px;
+        border: 2px solid #00ff9d;
+        box-shadow: 0 0 30px #00ff9d;
+    }
 
-  .container {
-    margin: 40px auto;
-    max-width: 500px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-  }
+    h1 {
+        font-size: 32px;
+        margin-bottom: 20px;
+        text-shadow: 0 0 15px #00ff9d;
+    }
 
-  input {
-    width: 90%;
-    padding: 12px;
-    margin: 15px 0;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    text-align: center;
-    outline: none;
-  }
+    img#qr {
+        width: 250px;
+        height: 250px;
+        margin: 20px auto;
+        display: none;
+        border: 2px solid #00ff9d;
+        border-radius: 10px;
+    }
 
-  button {
-    padding: 12px 25px;
-    background: #f1c40f;
-    border: none;
-    border-radius: 8px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-  }
+    .status {
+        font-size: 18px;
+        margin: 10px 0;
+        color: #00ff9d;
+    }
 
-  button:hover {
-    background: #f39c12;
-    transform: scale(1.05);
-  }
+    input[type="text"] {
+        width: 80%;
+        padding: 10px;
+        margin: 10px 0;
+        background: #111;
+        color: #00ff9d;
+        border: 1px solid #00ff9d;
+        border-radius: 5px;
+        text-align: center;
+    }
 
-  .qr-section {
-    margin-top: 25px;
-  }
+    button {
+        padding: 10px 20px;
+        background: #00ff9d;
+        color: #000;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 5px;
+        transition: 0.3s;
+    }
 
-  img.qr-image {
-    width: 250px;
-    margin-top: 15px;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  }
+    button:hover {
+        background: #00cc7d;
+    }
 
-  footer {
-    margin-top: 40px;
-    font-size: 14px;
-    opacity: 0.7;
-  }
+    .code-box {
+        margin-top: 15px;
+        padding: 10px;
+        background: #111;
+        border: 1px solid #00ff9d;
+        border-radius: 5px;
+        font-size: 18px;
+        display: none;
+    }
+
+    footer {
+        margin-top: 20px;
+        font-size: 14px;
+        color: #00ff9d;
+        text-shadow: 0 0 10px #00ff9d;
+    }
 </style>
 </head>
 <body>
-<header>🤖 لوحة تحكم بوت طرزان الواقدي ⚔️</header>
+
+<canvas id="matrix"></canvas>
+
 <div class="container">
-  <h2>توليد رمز الاقتران</h2>
-  <input type="text" id="phoneNumber" placeholder="أدخل رقمك مع كود الدولة (مثال: 9665XXXXXXX)">
-  <button onclick="generatePairCode()">إنشاء الرمز</button>
-  <div class="qr-section" id="result"></div>
+    <h1>⚡ طرزان الواقدي ⚡</h1>
+    <p class="status">🔍 حالة الجلسة: <span id="sessionStatus">جاري التحقق...</span></p>
+    <img id="qr" src="/qr.png" alt="QR Code">
+    
+    <div>
+        <button onclick="reloadQR()">🔄 إعادة تحميل QR</button>
+        <button onclick="deleteSession()">🗑 حذف الجلسة</button>
+    </div>
+
+    <h3>🔑 طلب رمز الاقتران</h3>
+    <input type="text" id="phone" placeholder="أدخل رقمك مثل 9665xxxxxxx">
+    <br>
+    <button onclick="getPairCode()">طلب الرمز</button>
+    <div class="code-box" id="pairCodeBox">رمز الاقتران: <span id="pairCode"></span></div>
 </div>
-<footer>
-  &copy; 2025 طرزان الواقدي - جميع الحقوق محفوظة
-</footer>
+
+<footer>💻 تصميم هاكرزي حصري بواسطة طرزان الواقدي ⚔️</footer>
+
+<audio id="successSound" src="https://www.soundjay.com/buttons/button-09.mp3"></audio>
 
 <script>
-async function generatePairCode() {
-  const number = document.getElementById('phoneNumber').value.trim();
-  const resultDiv = document.getElementById('result');
-  if (!number) {
-    resultDiv.innerHTML = "<p style='color:red;'>❌ يرجى إدخال رقم الهاتف</p>";
-    return;
-  }
+// Matrix خلفية
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
 
-  resultDiv.innerHTML = "<p style='color:yellow;'>⏳ جاري إنشاء الرمز، انتظر...</p>";
+const letters = "01 TARZAN BOT ";
+const fontSize = 16;
+const columns = canvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
 
-  try {
-    const response = await fetch('/pair', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number })
-    });
-    const data = await response.json();
+function draw() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#00ff9d";
+    ctx.font = fontSize + "px monospace";
 
-    if (data.pairingCode) {
-      resultDiv.innerHTML = `
-        <p style="color:#0f0; font-size:18px;">✅ الرمز الخاص بك:</p>
-        <h3 style="background:#222; padding:10px; border-radius:8px;">${data.pairingCode}</h3>
-        <p style="color:#ccc;">أدخله في تطبيق واتساب لإكمال الربط</p>
-      `;
-    } else {
-      resultDiv.innerHTML = `<p style='color:red;'>❌ ${data.error || 'حدث خطأ في إنشاء الرمز'}</p>`;
+    for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+        }
+        drops[i]++;
     }
-  } catch (err) {
-    resultDiv.innerHTML = "<p style='color:red;'>❌ فشل الاتصال بالسيرفر</p>";
-  }
+}
+setInterval(draw, 35);
+
+// جلب حالة الجلسة
+async function checkSession() {
+    try {
+        const res = await fetch('/sessions');
+        const sessions = await res.json();
+        const statusEl = document.getElementById('sessionStatus');
+        const qrEl = document.getElementById('qr');
+
+        if (sessions.length > 0) {
+            statusEl.textContent = "✅ الجلسة متصلة";
+            qrEl.style.display = "none";
+        } else {
+            statusEl.textContent = "❌ غير متصل";
+            qrEl.style.display = "block";
+        }
+    } catch {
+        document.getElementById('sessionStatus').textContent = "⚠️ خطأ في التحقق";
+    }
+}
+checkSession();
+setInterval(checkSession, 5000);
+
+// إعادة تحميل QR
+function reloadQR() {
+    document.getElementById('qr').src = '/qr.png?' + Date.now();
+}
+
+// حذف الجلسة
+async function deleteSession() {
+    const password = prompt("أدخل كلمة المرور لحذف الجلسة:");
+    if (!password) return;
+    const res = await fetch('/delete-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: 'default', password })
+    });
+    const data = await res.json();
+    alert(data.message || data.error);
+}
+
+// طلب رمز Pairing Code
+async function getPairCode() {
+    const phone = document.getElementById('phone').value.trim();
+    if (!phone) return alert("❌ أدخل رقم الهاتف");
+    const res = await fetch('/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: phone })
+    });
+    const data = await res.json();
+    if (data.pairingCode) {
+        document.getElementById('pairCodeBox').style.display = 'block';
+        document.getElementById('pairCode').textContent = data.pairingCode;
+        document.getElementById('successSound').play();
+    } else {
+        alert(data.error || "حدث خطأ");
+    }
 }
 </script>
+
 </body>
 </html>
