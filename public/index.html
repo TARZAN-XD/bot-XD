@@ -4,19 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>طرزان الواقدي | نظام الإقتران</title>
-
-<!-- خط فخم -->
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@600&display=swap" rel="stylesheet">
-
 <style>
     body {
         margin: 0;
         padding: 0;
-        font-family: 'Teko', sans-serif;
+        font-family: 'Courier New', monospace;
         background: #000;
         color: #00ff9d;
         text-align: center;
-        overflow-x: hidden;
+        overflow: hidden;
     }
 
     canvas {
@@ -27,85 +23,60 @@
     }
 
     .container {
-        max-width: 95%;
-        width: 520px;
-        margin: 60px auto;
-        background: rgba(0, 0, 0, 0.9);
+        max-width: 550px;
+        margin: 40px auto;
+        background: rgba(0, 0, 0, 0.85);
         padding: 25px;
         border-radius: 15px;
         border: 2px solid #00ff9d;
-        box-shadow: 0 0 40px #00ff9d;
+        box-shadow: 0 0 30px #00ff9d;
     }
 
     h1 {
-        font-size: 42px;
+        font-size: 32px;
         margin-bottom: 20px;
-        color: #00ff9d;
-        text-shadow: 0 0 25px #00ff9d, 0 0 45px #00ffaa;
-        animation: glow 2s infinite alternate;
-    }
-
-    @keyframes glow {
-        0% { text-shadow: 0 0 10px #00ff9d; }
-        100% { text-shadow: 0 0 35px #00ffaa; }
+        text-shadow: 0 0 15px #00ff9d;
     }
 
     .status {
-        font-size: 22px;
-        margin: 15px 0;
+        font-size: 18px;
+        margin: 10px 0;
+        color: #00ff9d;
     }
 
     input[type="text"] {
         width: 90%;
-        padding: 14px;
+        padding: 10px;
         margin: 10px 0;
         background: #111;
         color: #00ff9d;
         border: 1px solid #00ff9d;
-        border-radius: 8px;
+        border-radius: 5px;
         text-align: center;
-        font-size: 18px;
+        font-size: 16px;
     }
 
-    .button-group {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 12px;
-        margin-top: 15px;
-    }
-
-    .button-group button {
-        flex: 1 1 calc(33.33% - 12px);
-        min-width: 130px;
-        padding: 14px;
+    button {
+        padding: 10px 20px;
         background: #00ff9d;
         color: #000;
         border: none;
-        font-size: 18px;
-        font-weight: bold;
-        border-radius: 8px;
+        font-size: 16px;
         cursor: pointer;
-        transition: all 0.3s ease-in-out;
-        box-shadow: 0 0 15px #00ff9d;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 5px;
+        transition: 0.3s;
     }
 
-    .button-group button:hover {
+    button:hover {
         background: #00cc7d;
-        transform: scale(1.07);
-        box-shadow: 0 0 25px #00ffaa;
-    }
-
-    @media (max-width: 600px) {
-        .button-group button {
-            flex: 1 1 100%;
-        }
     }
 
     #sessionsList {
         margin-top: 20px;
         text-align: left;
-        font-size: 16px;
+        font-size: 14px;
         color: #00ff9d;
     }
 
@@ -114,9 +85,9 @@
         justify-content: space-between;
         align-items: center;
         background: #111;
-        padding: 10px;
+        padding: 8px;
         margin: 5px 0;
-        border-radius: 8px;
+        border-radius: 6px;
         border: 1px solid #00ff9d;
     }
 
@@ -124,11 +95,9 @@
         background: #ff3333;
         color: #fff;
         border: none;
-        padding: 8px 12px;
-        border-radius: 8px;
+        padding: 5px 10px;
+        border-radius: 5px;
         cursor: pointer;
-        font-size: 14px;
-        transition: 0.3s;
     }
 
     .delete-session-btn:hover {
@@ -136,30 +105,24 @@
     }
 
     footer {
-        margin-top: 30px;
-        font-size: 16px;
+        margin-top: 20px;
+        font-size: 14px;
         color: #00ff9d;
-        text-shadow: 0 0 15px #00ff9d;
+        text-shadow: 0 0 10px #00ff9d;
     }
 
-    /* Modal */
+    /* Modal styles */
     #modalOverlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.9);
+        background: rgba(0,0,0,0.8);
         display: none;
         justify-content: center;
         align-items: center;
         z-index: 9999;
-        animation: fadeIn 0.5s ease;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
     }
 
     #modalContent {
@@ -168,17 +131,11 @@
         padding: 20px;
         border-radius: 15px;
         text-align: center;
-        width: 350px;
+        width: 330px;
         box-shadow: 0 0 40px #00ff9d;
         color: #00ff9d;
         font-family: monospace;
         position: relative;
-        transform: scale(0.8);
-        animation: zoomIn 0.4s forwards;
-    }
-
-    @keyframes zoomIn {
-        to { transform: scale(1); }
     }
 
     #modalContent img {
@@ -207,12 +164,12 @@
         background: #00ff9d;
         border: none;
         border-radius: 50%;
-        width: 35px;
-        height: 35px;
+        width: 30px;
+        height: 30px;
         color: #000;
         font-weight: bold;
         cursor: pointer;
-        font-size: 20px;
+        font-size: 18px;
         line-height: 1;
     }
 
@@ -230,19 +187,17 @@
 
     <input type="text" id="sessionId" placeholder="أدخل معرف الجلسة (مثال: tarzanalwaqdiy)" />
     <input type="text" id="phone" placeholder="أدخل رقمك مثل 9665xxxxxxx" />
-
-    <div class="button-group">
-        <button id="pairBtn">🔑 طلب الرمز</button>
-        <button id="reloadQRBtn">🔄 إعادة تحميل QR</button>
-        <button id="deleteSessionBtn">🗑 حذف الجلسة</button>
-    </div>
+    <br>
+    <button id="pairBtn">طلب الرمز</button>
+    <button id="reloadQRBtn">🔄 إعادة تحميل QR</button>
+    <button id="deleteSessionBtn">🗑 حذف الجلسة الحالية</button>
 
     <div id="sessionsList"></div>
 </div>
 
-<footer>💻 تصميم حصري بواسطة <strong>طرزان الواقدي</strong> ⚔️</footer>
+<footer>💻 تصميم هاكرزي حصري بواسطة طرزان الواقدي ⚔️</footer>
 
-<!-- Modal -->
+<!-- Modal for QR + Pairing Code -->
 <div id="modalOverlay">
     <div id="modalContent">
         <button id="closeModalBtn">×</button>
@@ -256,7 +211,7 @@
 <audio id="successSound" src="https://www.soundjay.com/buttons/button-09.mp3"></audio>
 
 <script>
-// خلفية Matrix
+// Matrix خلفية
 const canvas = document.getElementById('matrix');
 const ctx = canvas.getContext('2d');
 canvas.height = window.innerHeight;
@@ -268,7 +223,7 @@ const columns = canvas.width / fontSize;
 const drops = Array(Math.floor(columns)).fill(1);
 
 function draw() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#00ff9d";
     ctx.font = fontSize + "px monospace";
@@ -284,7 +239,121 @@ function draw() {
 }
 setInterval(draw, 35);
 
-// باقي الأكواد (checkSession - pairBtn) كما هي
+// عناصر DOM
+const sessionIdInput = document.getElementById('sessionId');
+const phoneInput = document.getElementById('phone');
+const pairBtn = document.getElementById('pairBtn');
+const reloadQRBtn = document.getElementById('reloadQRBtn');
+const deleteSessionBtn = document.getElementById('deleteSessionBtn');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalQR = document.getElementById('modalQR');
+const modalPairCode = document.getElementById('modalPairCode');
+const modalSessionId = document.getElementById('modalSessionId');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const sessionsList = document.getElementById('sessionsList');
+
+closeModalBtn.addEventListener('click', () => {
+    modalOverlay.style.display = 'none';
+});
+
+async function checkSession() {
+    try {
+        const res = await fetch('/sessions');
+        const sessions = await res.json();
+        const statusEl = document.getElementById('sessionStatus');
+
+        if (sessions.length > 0) {
+            statusEl.textContent = "✅ يوجد جلسة متصلة";
+            displaySessions(sessions);
+        } else {
+            statusEl.textContent = "❌ لا توجد جلسة نشطة";
+            sessionsList.innerHTML = '';
+        }
+    } catch {
+        document.getElementById('sessionStatus').textContent = "⚠️ خطأ في التحقق";
+    }
+}
+
+function displaySessions(sessions) {
+    sessionsList.innerHTML = '';
+    sessions.forEach(session => {
+        const div = document.createElement('div');
+        div.className = 'session-item';
+
+        const span = document.createElement('span');
+        span.textContent = session;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-session-btn';
+        deleteBtn.textContent = 'حذف';
+        deleteBtn.onclick = async () => {
+            const password = prompt('أدخل كلمة المرور لحذف الجلسة:');
+            if (!password) return;
+            const res = await fetch('/delete-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            checkSession();
+        };
+
+        div.appendChild(span);
+        div.appendChild(deleteBtn);
+        sessionsList.appendChild(div);
+    });
+}
+
+// طلب رمز Pairing Code
+pairBtn.addEventListener('click', async () => {
+    const sessionId = sessionIdInput.value.trim();
+    const phone = phoneInput.value.trim();
+
+    if (!sessionId) return alert("❌ أدخل معرف الجلسة");
+    if (!phone) return alert("❌ أدخل رقم الهاتف");
+
+    try {
+        const res = await fetch('/pair', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ number: phone, sessionId })
+        });
+
+        const data = await res.json();
+        if (data.pairingCode) {
+            modalQR.src = '/qr.png?' + Date.now();
+            modalPairCode.textContent = "رمز الاقتران: " + data.pairingCode;
+            modalSessionId.textContent = "معرف الجلسة: " + sessionId;
+            modalOverlay.style.display = 'flex';
+            document.getElementById('successSound').play();
+        } else {
+            alert(data.error || "حدث خطأ");
+        }
+    } catch {
+        alert("❌ فشل الاتصال بالخادم");
+    }
+});
+
+reloadQRBtn.addEventListener('click', () => {
+    modalQR.src = '/qr.png?' + Date.now();
+});
+
+deleteSessionBtn.addEventListener('click', async () => {
+    const password = prompt("أدخل كلمة المرور لحذف الجلسة:");
+    if (!password) return;
+    const res = await fetch('/delete-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    alert(data.message || data.error);
+    checkSession();
+});
+
+checkSession();
+setInterval(checkSession, 7000);
 </script>
 </body>
 </html>
