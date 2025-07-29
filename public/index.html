@@ -60,15 +60,33 @@
     button:hover {
         background: #2ea043;
     }
-    #qr img {
-        width: 200px;
-        margin-top: 15px;
-        border: 2px solid #58a6ff;
-        border-radius: 10px;
-    }
     .pair-section {
         display: none;
         margin-top: 20px;
+    }
+    #pairCodeContainer {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+    }
+    #pairCode {
+        font-size: 18px;
+        color: #58a6ff;
+        font-weight: bold;
+    }
+    .copy-btn {
+        background: #444c56;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    .copy-btn:hover {
+        background: #586069;
     }
     .footer {
         margin-top: 15px;
@@ -85,12 +103,14 @@
     <input type="text" id="sessionId" placeholder="أدخل اسم الجلسة" />
     <button onclick="createSession()">إنشاء جلسة</button>
 
-    <div id="qr"></div>
-
     <div class="pair-section" id="pairSection">
         <input type="text" id="phoneNumber" placeholder="أدخل رقم واتساب مع كود الدولة" />
         <button onclick="getPairingCode()">طلب رمز الإقتران</button>
-        <p id="pairCode" style="font-size:18px;color:#58a6ff;font-weight:bold;"></p>
+        
+        <div id="pairCodeContainer" style="display:none;">
+            <p id="pairCode"></p>
+            <button class="copy-btn" onclick="copyPairCode()">📋 نسخ</button>
+        </div>
     </div>
 
     <div class="footer">
@@ -110,11 +130,8 @@ async function createSession() {
     });
     const data = await res.json();
     
-    if (data.qr) {
-        document.getElementById('qr').innerHTML = `
-            <h3>📷 امسح QR لربط الجلسة</h3>
-            <img src="${data.qr}" alt="QR Code" />
-        `;
+    if (data.message) {
+        alert(data.message);
         document.getElementById('pairSection').style.display = 'block';
     } else {
         alert(data.error || data.message);
@@ -134,10 +151,18 @@ async function getPairingCode() {
     const data = await res.json();
     
     if (data.pairingCode) {
-        document.getElementById('pairCode').innerText = `🔑 الرمز: ${data.pairingCode}`;
+        document.getElementById('pairCode').innerText = `🔑 ${data.pairingCode}`;
+        document.getElementById('pairCodeContainer').style.display = 'flex';
     } else {
         alert(data.error || 'حدث خطأ أثناء طلب الرمز');
     }
+}
+
+function copyPairCode() {
+    const code = document.getElementById('pairCode').innerText.replace('🔑', '').trim();
+    if (!code) return alert('لا يوجد رمز للنسخ');
+    navigator.clipboard.writeText(code);
+    alert('✅ تم نسخ الرمز!');
 }
 </script>
 </body>
