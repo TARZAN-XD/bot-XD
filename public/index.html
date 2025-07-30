@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🚀 نظام الإقتران - طرزان الواقدي</title>
 <style>
     body {
-        margin: 0;
-        padding: 0;
         font-family: 'Cairo', sans-serif;
         background: #0d1117;
         color: #fff;
@@ -15,15 +13,15 @@
         justify-content: center;
         align-items: center;
         min-height: 100vh;
+        margin: 0;
     }
     .container {
-        width: 100%;
-        max-width: 450px;
+        max-width: 400px;
         background: #161b22;
-        border-radius: 15px;
+        border-radius: 12px;
         padding: 20px;
         text-align: center;
-        box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        box-shadow: 0 0 20px rgba(0,0,0,0.6);
     }
     h1 {
         font-size: 22px;
@@ -31,86 +29,81 @@
         color: #58a6ff;
     }
     p {
-        font-size: 14px;
         color: #c9d1d9;
-        margin-bottom: 20px;
+        font-size: 14px;
+        margin-bottom: 15px;
     }
     input {
         width: 90%;
         padding: 10px;
         margin: 8px 0;
-        border: none;
         border-radius: 8px;
-        font-size: 16px;
-        outline: none;
+        border: none;
         text-align: center;
+        font-size: 16px;
     }
     button {
         width: 95%;
         padding: 12px;
-        margin: 10px 0;
         background: #238636;
-        color: #fff;
+        color: white;
         font-size: 16px;
         border: none;
         border-radius: 8px;
+        margin: 10px 0;
         cursor: pointer;
         transition: 0.3s;
     }
     button:hover {
         background: #2ea043;
     }
-    .pair-section {
-        display: none;
-        margin-top: 20px;
-    }
-    #pairCodeContainer {
-        margin-top: 10px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-    }
-    #pairCode {
-        font-size: 18px;
-        color: #58a6ff;
-        font-weight: bold;
-    }
-    .copy-btn {
-        background: #444c56;
-        color: #fff;
-        padding: 8px 12px;
+    #qr img {
+        width: 200px;
+        margin-top: 15px;
         border-radius: 8px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-    .copy-btn:hover {
-        background: #586069;
+        border: 2px solid #58a6ff;
     }
     .footer {
         margin-top: 15px;
         font-size: 12px;
         color: #8b949e;
     }
+    .pair-section {
+        display: none;
+        margin-top: 20px;
+    }
+    #pairCode {
+        font-size: 20px;
+        font-weight: bold;
+        color: #58a6ff;
+        margin-top: 10px;
+    }
+    .copy-btn {
+        background: #444c56;
+        color: #fff;
+        font-size: 14px;
+        margin-top: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
 </style>
 </head>
 <body>
 <div class="container">
     <h1>✨ نظام الإقتران ✨</h1>
-    <p>أدخل اسم الجلسة لبدء الإقتران</p>
-    
-    <input type="text" id="sessionId" placeholder="أدخل اسم الجلسة" />
-    <button onclick="createSession()">إنشاء جلسة</button>
+    <p>أدخل اسم الجلسة لإنشاء الإقتران</p>
+
+    <input type="text" id="sessionId" placeholder="أدخل اسم الجلسة">
+    <button onclick="createSession()">إنشاء الجلسة</button>
+
+    <div id="qr"></div>
 
     <div class="pair-section" id="pairSection">
-        <input type="text" id="phoneNumber" placeholder="أدخل رقم واتساب مع كود الدولة" />
+        <input type="text" id="phoneNumber" placeholder="أدخل رقم واتساب مع كود الدولة">
         <button onclick="getPairingCode()">طلب رمز الإقتران</button>
-        
-        <div id="pairCodeContainer" style="display:none;">
-            <p id="pairCode"></p>
-            <button class="copy-btn" onclick="copyPairCode()">📋 نسخ</button>
-        </div>
+        <p id="pairCode"></p>
+        <button class="copy-btn" onclick="copyPairingCode()">📋 نسخ الرمز</button>
     </div>
 
     <div class="footer">
@@ -122,16 +115,19 @@
 async function createSession() {
     const sessionId = document.getElementById('sessionId').value.trim();
     if (!sessionId) return alert('أدخل اسم الجلسة');
-    
+
     const res = await fetch('/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId })
     });
     const data = await res.json();
-    
-    if (data.message) {
-        alert(data.message);
+
+    if (data.qr) {
+        document.getElementById('qr').innerHTML = `
+            <h3>📷 امسح QR لربط الجلسة</h3>
+            <img src="${data.qr}" alt="QR Code">
+        `;
         document.getElementById('pairSection').style.display = 'block';
     } else {
         alert(data.error || data.message);
@@ -142,27 +138,26 @@ async function getPairingCode() {
     const sessionId = document.getElementById('sessionId').value.trim();
     const number = document.getElementById('phoneNumber').value.trim();
     if (!number) return alert('أدخل رقم واتساب');
-    
+
     const res = await fetch('/pair', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, number })
     });
     const data = await res.json();
-    
+
     if (data.pairingCode) {
         document.getElementById('pairCode').innerText = `🔑 ${data.pairingCode}`;
-        document.getElementById('pairCodeContainer').style.display = 'flex';
     } else {
-        alert(data.error || 'حدث خطأ أثناء طلب الرمز');
+        alert(data.error || 'فشل في توليد الرمز');
     }
 }
 
-function copyPairCode() {
-    const code = document.getElementById('pairCode').innerText.replace('🔑', '').trim();
-    if (!code) return alert('لا يوجد رمز للنسخ');
+function copyPairingCode() {
+    const code = document.getElementById('pairCode').innerText.replace('🔑 ', '');
+    if (!code) return alert('لا يوجد رمز لنسخه');
     navigator.clipboard.writeText(code);
-    alert('✅ تم نسخ الرمز!');
+    alert('تم نسخ الرمز بنجاح!');
 }
 </script>
 </body>
