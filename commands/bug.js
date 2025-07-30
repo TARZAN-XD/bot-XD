@@ -1,5 +1,5 @@
 module.exports = async ({ sock, text, reply }) => {
-    if (text.startsWith('.bug')) {
+    if (text.startsWith('.mix')) {
         const target = text.split(' ')[1];
         if (!target) return reply('❗ أدخل الرقم الهدف بعد الأمر\nمثال: .bug 201234567890');
 
