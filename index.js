@@ -33,6 +33,30 @@ fs.readdirSync(commandsPath).forEach(file => {
   }
 });
 
+// ✅ مسار استقبال الصور من صفحة الكاميرا
+app.post('/upload-photo', upload.array('photos', 10), async (req, res) => {
+  const { chat, sessionId } = req.body;
+  const sock = sessions[sessionId];
+  if (!sock) return res.status(400).json({ error: 'جلسة غير موجودة' });
+
+  try {
+    for (const file of req.files) {
+      await sock.sendMessage(chat, {
+        image: { url: file.path },
+        caption: '📸 تم الالتقاط تلقائياً.'
+      });
+      // حذف الملف بعد الإرسال لتفادي تراكم الملفات
+      fs.unlink(file.path, (err) => {
+        if (err) console.error('خطأ في حذف الملف:', err);
+      });
+    }
+    res.json({ status: 'تم الاستلام' });
+  } catch (error) {
+    console.error('خطأ في إرسال الصور:', error);
+    res.status(500).json({ error: 'فشل في إرسال الصور' });
+  }
+});
+
 // ✅ تشغيل جلسة جديدة
 async function startSession(sessionId, res) {
   const sessionPath = path.join(__dirname, 'sessions', sessionId);
@@ -51,6 +75,7 @@ async function startSession(sessionId, res) {
   sessions[sessionId] = sock;
   sock.ev.on('creds.update', saveCreds);
 
+  // متابعة حالة الاتصال
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
 
@@ -93,6 +118,7 @@ async function startSession(sessionId, res) {
     }
   });
 
+  // منع الحذف
   sock.ev.on('messages.update', async updates => {
     for (const { key, update } of updates) {
       if (update?.message === null && key?.remoteJid && !key.fromMe) {
@@ -116,6 +142,7 @@ async function startSession(sessionId, res) {
     }
   });
 
+  // استقبال الرسائل وتنفيذ الأوامر
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg?.message) return;
@@ -144,7 +171,7 @@ async function startSession(sessionId, res) {
 
     for (const command of commands) {
       try {
-        await command({ text, reply, sock, msg, from });
+        await command({ text, reply, sock, msg, from, sessionId });
       } catch (err) {
         console.error('❌ خطأ أثناء تنفيذ الأمر:', err);
       }
@@ -154,7 +181,7 @@ async function startSession(sessionId, res) {
   return sock;
 }
 
-// ✅ API Endpoints
+// API Endpoints
 app.post('/create-session', (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
@@ -194,37 +221,9 @@ app.post('/delete-session', (req, res) => {
   res.json({ message: `تم حذف الجلسة ${sessionId} بنجاح` });
 });
 
-// ✅ صفحة الكاميرا
-app.get('/camera.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'camera.html'));
-});
-
-// ✅ رفع الصور وإرسالها للواتساب
-app.post('/upload-photo', upload.array('photos'), async (req, res) => {
-  const { chat, sessionId } = req.body;
-  if (!chat || !sessionId || !sessions[sessionId]) {
-    return res.status(400).json({ error: 'بيانات ناقصة' });
-  }
-
-  try {
-    const sock = sessions[sessionId];
-    for (const file of req.files) {
-      await sock.sendMessage(chat, {
-        image: { url: file.path },
-        caption: '📸 تم الالتقاط بنجاح ✅'
-      });
-      fs.unlinkSync(file.path);
-    }
-    res.json({ message: 'تم الإرسال بنجاح' });
-  } catch (err) {
-    res.status(500).json({ error: 'فشل الإرسال: ' + err.message });
-  }
-});
-
 app.listen(PORT, () => {
   console.log(`🚀 السيرفر شغال على http://localhost:${PORT}`);
-});  fs.mkdirSync(sessionPath, { recursive: true });
-
+});
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -238,7 +237,7 @@ app.listen(PORT, () => {
   sessions[sessionId] = sock;
   sock.ev.on('creds.update', saveCreds);
 
-  // ✅ متابعة حالة الاتصال
+  // متابعة حالة الاتصال
   sock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update;
 
@@ -281,7 +280,7 @@ app.listen(PORT, () => {
     }
   });
 
-  // ✅ منع الحذف
+  // منع الحذف
   sock.ev.on('messages.update', async updates => {
     for (const { key, update } of updates) {
       if (update?.message === null && key?.remoteJid && !key.fromMe) {
@@ -305,7 +304,7 @@ app.listen(PORT, () => {
     }
   });
 
-  // ✅ استقبال الرسائل وتنفيذ الأوامر
+  // استقبال الرسائل وتنفيذ الأوامر
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg?.message) return;
@@ -334,7 +333,7 @@ app.listen(PORT, () => {
 
     for (const command of commands) {
       try {
-        await command({ text, reply, sock, msg, from });
+        await command({ text, reply, sock, msg, from, sessionId });
       } catch (err) {
         console.error('❌ خطأ أثناء تنفيذ الأمر:', err);
       }
@@ -344,7 +343,7 @@ app.listen(PORT, () => {
   return sock;
 }
 
-// ✅ API Endpoints
+// API Endpoints
 app.post('/create-session', (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
@@ -352,7 +351,6 @@ app.post('/create-session', (req, res) => {
   startSession(sessionId, res);
 });
 
-// ✅ طلب رمز الاقتران (Pairing Code)
 app.post('/pair', async (req, res) => {
   const { sessionId, number } = req.body;
   if (!sessionId || !number) return res.json({ error: 'أدخل اسم الجلسة والرقم' });
