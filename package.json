@@ -2,8 +2,7 @@
   "name": "whatsapp-bot-dini",
   "version": "2.0.0",
   "description": "WhatsApp Bot Dini with Multi-Session and HTML QR Viewer",
-  "main": "index.js",
-  "type": "module",
+  "main": "index.js", 
   "scripts": {
     "start": "node index.js"
   },
