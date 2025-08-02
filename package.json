@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "WhatsApp Bot Dini with Multi-Session and HTML QR Viewer",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
@@ -26,7 +27,10 @@
     "google-play-scraper": "^9.0.3",
     "@google/generative-ai": "^0.7.0",
     "form-data": "^4.0.0",
-    "cheerio": "^1.0.0-rc.12", 
-    "type": "module" 
+    "cheerio": "^1.0.0-rc.12",
+    "multer": "^1.4.5-lts.1"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
