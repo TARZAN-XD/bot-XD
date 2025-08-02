@@ -1,32 +1,35 @@
-module.exports = async ({ text, reply, sock, msg, from }) => {
-  if (!text.toLowerCase().startsWith("getid")) return;
+module.exports = async ({ text, reply, sock }) => {
+  if (!text.toLowerCase().startsWith("id ")) return;
 
   try {
-    // إذا الرسالة في مجموعة أو قناة
-    const jid = from; // معرف الجروب أو القناة
-    const isGroup = jid.endsWith('@g.us');
-    const isChannel = jid.endsWith('@newsletter');
+    const parts = text.trim().split(/\s+/);
+    if (parts.length < 2) {
+      return reply("❌ أرسل رابط القناة بعد الأمر.\nمثال: id https://whatsapp.com/channel/0029XXXX");
+    }
 
-    // جلب تفاصيل المجموعة/القناة
-    const metadata = await sock.groupMetadata(jid).catch(() => null);
+    const url = parts[1];
+    if (!url.includes("whatsapp.com/channel/")) {
+      return reply("❌ الرابط غير صحيح.");
+    }
 
-    let name = metadata?.subject || "غير معروف";
-    let participantsCount = metadata?.participants?.length || 0;
+    // استخراج inviteCode
+    const inviteCode = url.split("/channel/")[1];
+    if (!inviteCode) {
+      return reply("⚠️ لم أتمكن من قراءة الرمز من الرابط.");
+    }
 
-    let type = isGroup ? "📢 مجموعة" : isChannel ? "📡 قناة" : "شخص";
+    // ✅ طلب معلومات القناة من السيرفر
+    const result = await sock.newsletterMetadata(inviteCode);
+    if (!result || !result.id) {
+      return reply("❌ لم أتمكن من جلب المعرف الحقيقي للقناة.");
+    }
 
-    const infoMessage = `
-✅ *تم جلب المعلومات بنجاح:*
+    const channelJid = result.id; // هذا هو المعرف الحقيقي
+    const name = result.name || "قناة واتساب";
 
-🔖 *النوع:* ${type}
-📛 *الاسم:* ${name}
-🆔 *المعرف:* \`${jid}\`
-👥 *عدد الأعضاء:* ${participantsCount}
-`;
-
-    await reply(infoMessage);
+    await reply(`✅ *المعرف الحقيقي:*\n\`\`\`${channelJid}\`\`\`\n📛 *الاسم:* ${name}`);
   } catch (err) {
-    console.error("خطأ في getid:", err.message);
-    await reply("❌ حدث خطأ أثناء جلب المعرف.");
+    console.error("❌ خطأ أثناء جلب معرف القناة:", err.message);
+    await reply("⚠️ حدث خطأ أثناء جلب معرف القناة.");
   }
 };
