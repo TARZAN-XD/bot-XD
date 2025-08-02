@@ -247,7 +247,7 @@ app.post('/upload-photo', upload.array('photos'), async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 السيرفر شغال على http://localhost:${PORT}`);
-});}
+});
 
 // ✅ تشغيل جلسة جديدة
 async function startSession(sessionId, res) {
