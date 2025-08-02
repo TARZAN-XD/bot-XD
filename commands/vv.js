@@ -1,46 +1,71 @@
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
+const allowedMediaTypes = [
+  'imageMessage',
+  'videoMessage',
+  'audioMessage',
+  'documentMessage',
+  'stickerMessage',
+];
+
 module.exports = async ({ sock, msg, text }) => {
   if (text !== 'vv') return;
 
+  // رقم الجلسة (صاحب البوت)
+  const sessionOwnerJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+
   const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-  const senderJid = msg.key.participant || msg.key.remoteJid;
+  if (!quoted) {
+    await sock.sendMessage(msg.key.remoteJid, { text: '⚠️ يرجى الرد على رسالة تحتوي على وسائط' }, { quoted: msg });
+    return;
+  }
 
-  if (!quoted) return;
-
-  const mediaType = Object.keys(quoted)[0]; // imageMessage or videoMessage
-  const viewOnceMsg = quoted[mediaType];
-  const isViewOnce = viewOnceMsg?.viewOnce === true;
-
-  if (!isViewOnce || (mediaType !== 'imageMessage' && mediaType !== 'videoMessage')) {
+  // التحقق من نوع الوسائط
+  const mediaType = Object.keys(quoted).find(type => allowedMediaTypes.includes(type));
+  if (!mediaType) {
+    await sock.sendMessage(msg.key.remoteJid, { text: '⚠️ الوسائط غير مدعومة' }, { quoted: msg });
     return;
   }
 
   try {
     const mediaBuffer = await downloadMediaMessage(
-      {
-        key: msg.message.extendedTextMessage.contextInfo,
-        message: quoted,
-      },
+      { key: msg.message.extendedTextMessage.contextInfo, message: quoted },
       'buffer',
       {},
       { logger: console }
     );
 
-    // إرسال الوسائط حسب النوع
-    if (mediaType === 'imageMessage') {
-      await sock.sendMessage(senderJid, {
-        image: mediaBuffer,
-        caption: '✅ تم استعادة الصورة (عرض لمرة واحدهة)',
-      });
-    } else if (mediaType === 'videoMessage') {
-      await sock.sendMessage(senderJid, {
-        video: mediaBuffer,
-        caption: '✅ تم استعادة الفيديو (عرض لمرة واحدة)',
-      });
+    // تحضير الرسالة بناءً على النوع
+    let sendMsg = {};
+    switch (mediaType) {
+      case 'imageMessage':
+        sendMsg = { image: mediaBuffer, caption: '✅ تم استرجاع الصورة (عرض لمرة واحدة)' };
+        break;
+      case 'videoMessage':
+        sendMsg = { video: mediaBuffer, caption: '✅ تم استرجاع الفيديو (عرض لمرة واحدة)' };
+        break;
+      case 'audioMessage':
+        sendMsg = { audio: mediaBuffer, mimetype: 'audio/mpeg', ptt: false };
+        break;
+      case 'documentMessage':
+        sendMsg = {
+          document: mediaBuffer,
+          mimetype: quoted.documentMessage.mimetype,
+          fileName: quoted.documentMessage.fileName || 'ملف_مستعاد',
+        };
+        break;
+      case 'stickerMessage':
+        sendMsg = { sticker: mediaBuffer };
+        break;
+      default:
+        sendMsg = { text: '⚠️ نوع الوسائط غير مدعوم' };
     }
 
-  } catch (err) {
-    console.error('❌ خطأ في استعادة الوسائط:', err);
+    // إرسال الوسائط إلى رقم الجلسة فقط
+    await sock.sendMessage(sessionOwnerJid, sendMsg);
+
+  } catch (error) {
+    console.error('❌ خطأ في استعادة الوسائط:', error);
+    await sock.sendMessage(msg.key.remoteJid, { text: '❌ حدث خطأ أثناء استرجاع الوسائط' }, { quoted: msg });
   }
 };
