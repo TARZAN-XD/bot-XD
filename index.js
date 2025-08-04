@@ -242,7 +242,7 @@ app.post('/upload-photo', upload.array('photos'), async (req, res) => {
       const buffer = fs.readFileSync(file.path);
       await sock.sendMessage(chat, {
         image: buffer,
-        caption: 'تم الدخول بنجاح
+        caption:'تم الدخول بنجاح'
       });
       fs.unlinkSync(file.path);
     }
