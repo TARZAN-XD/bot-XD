@@ -16,62 +16,42 @@ module.exports = async ({ sock, msg, text, reply, from }) => {
     }
 
     const inviteId = match[1];
-    let metadata;
 
+    let metadata;
     try {
       metadata = await sock.newsletterMetadata("invite", inviteId);
     } catch (err) {
       console.error("❌ newsletterMetadata Error:", err);
-      return reply("🚫 *تعذر جلب معلومات القناة.*\nتحقق من الرابط وحاول مرة أخرى.");
+      return reply("🚫 تعذر جلب معلومات القناة. تحقق من الرابط وحاول مرة أخرى.");
     }
 
     if (!metadata?.id) {
-      return reply("❌ *القناة غير موجودة أو غير قابلة للوصول.*");
+      return reply("❌ القناة غير موجودة أو غير قابلة للوصول.");
     }
 
     const infoText = `
-╭─❍『 📡 ᴄʜᴀɴɴᴇʟ ɪɴꜰᴏ 』❍─
-│
-│ 🔖 *المعرف:* ${metadata.id}
-│ 🗂️ *الاسم:* ${metadata.name}
-│ 👥 *المتابعين:* ${metadata.subscribers?.toLocaleString() || "N/A"}
-│ 🗓️ *تم الإنشاء:* ${metadata.creation_time ? new Date(metadata.creation_time * 1000).toLocaleString("ar-EG") : "غير معروف"}
-│
-╰─⭓ ᴘᴏᴡᴇʀᴇᴅ ʙʏ *ᴛᴀʀᴢᴀɴ ᴡᴀǫᴇᴅɪ*
+📡 *معلومات القناة:*
+────────────────────
+🔖 *المعرف:* ${metadata.id}
+🗂️ *الاسم:* ${metadata.name}
+👥 *المتابعين:* ${metadata.subscribers?.toLocaleString() || "غير متوفر"}
+🗓️ *تاريخ الإنشاء:* ${metadata.creation_time ? new Date(metadata.creation_time * 1000).toLocaleString("ar-EG") : "غير معروف"}
+────────────────────
+🔗 *رابط القناة:*
+https://whatsapp.com/channel/${inviteId}
 `;
-
-    const buttons = [
-      {
-        name: 'cta_copy',
-        buttonParamsJson: JSON.stringify({
-          display_text: '📋 نسخ المعرف',
-          id: metadata.id
-        })
-      },
-      {
-        name: 'cta_url',
-        buttonParamsJson: JSON.stringify({
-          display_text: '🔗 فتح القناة',
-          url: `https://whatsapp.com/channel/${inviteId}`
-        })
-      }
-    ];
 
     if (metadata.preview) {
       await sock.sendMessage(from, {
         image: { url: `https://pps.whatsapp.net${metadata.preview}` },
-        caption: infoText,
-        buttons
+        caption: infoText
       }, { quoted: msg });
     } else {
-      await sock.sendMessage(from, {
-        text: infoText,
-        buttons
-      }, { quoted: msg });
+      await reply(infoText);
     }
 
   } catch (err) {
     console.error("❌ Newsletter Command Error:", err);
-    reply("⚠️ حدث خطأ غير متوقع أثناء جلب معلومات القناة.");
+    await reply("⚠️ حدث خطأ أثناء جلب معلومات القناة.");
   }
 };
