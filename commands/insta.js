@@ -1,52 +1,54 @@
+const { instagram } = require('instagram-url-direct');
 const axios = require('axios');
 
 module.exports = async ({ sock, msg, text, reply, from }) => {
-  // التحقق من الأمر
-  if (!text.startsWith('insta')) return;
+  if (!text.startsWith('instagram') && !text.startsWith('ig')) return;
 
-  // استخراج الرابط من الأمر
   const parts = text.trim().split(' ');
   if (parts.length < 2) {
-    return reply('❌ يرجى إدخال رابط منشور أو ريلز من إنستغرام.\nمثال: insta https://www.instagram.com/reel/...');
+    return reply(`❌ يرجى إدخال رابط انستقرام.\n\nمثال:\n• instagram https://www.instagram.com/reel/xxxx/`);
   }
 
-  const instaUrl = parts[1];
+  const url = parts[1].trim();
 
-  if (!instaUrl.includes('instagram.com')) {
-    return reply('❌ الرابط غير صالح. يرجى التأكد من رابط إنستغرام.');
+  if (!url.includes('instagram.com')) {
+    return reply('❌ الرابط غير صالح. تأكد من إدخال رابط انستقرام صحيح.');
   }
+
+  await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } });
 
   try {
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } });
+    const data = await instagram(url);
 
-    // استخدم API مجاني - مفتاحك الذي زودتني به
-    const apiUrl = `https://inrl-web.onrender.com/api/download/insta?apikey=f2aa1b720cdbce02f6ae29e2&url=${encodeURIComponent(instaUrl)}`;
-    const response = await axios.get(apiUrl);
-
-    if (!response.data || !response.data.status || !response.data.result || !response.data.result.length) {
-      return reply('❌ تعذر جلب الوسائط. تأكد من الرابط وحاول مجددًا.');
+    if (!data || !data.url_list || data.url_list.length === 0) {
+      return reply('❌ لم أتمكن من جلب أي وسائط من الرابط.');
     }
 
-    await reply('📥 جاري تحميل منشور إنستغرام... الرجاء الانتظار.');
-
-    // أرسل أول وسائط فقط - يمكنك تعديل ذلك لإرسال أكثر
-    const mediaUrl = response.data.result[0];
-
-    const mediaResp = await axios.get(mediaUrl.url, { responseType: 'arraybuffer' });
-    const mediaBuffer = Buffer.from(mediaResp.data, 'binary');
-
-    const type = mediaUrl.url.endsWith('.mp4') ? 'video' : 'image';
-
-    await sock.sendMessage(from, {
-      [type]: mediaBuffer,
-      caption: `📥 تم تحميل الوسائط بنجاح من إنستغرام.\n> طـــــرزان الواقدي 🔥`
-    }, { quoted: msg });
+    for (const mediaUrl of data.url_list) {
+      const mediaBuffer = await getBuffer(mediaUrl);
+      if (mediaUrl.includes('.mp4')) {
+        await sock.sendMessage(from, {
+          video: mediaBuffer,
+          caption: `🎬 تم التحميل من انستقرام ✅`
+        }, { quoted: msg });
+      } else {
+        await sock.sendMessage(from, {
+          image: mediaBuffer,
+          caption: `🖼️ تم التحميل من انستقرام ✅`
+        }, { quoted: msg });
+      }
+    }
 
     await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
 
   } catch (err) {
-    console.error('❌ خطأ أثناء تحميل إنستغرام:', err.message);
-    await reply('❌ حدث خطأ أثناء المعالجة. الرجاء المحاولة لاحقًا.');
+    console.error('❌ فشل تحميل من انستقرام:', err.message);
+    await reply('❌ حدث خطأ أثناء التحميل. حاول مرة أخرى.');
     await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
   }
 };
+
+async function getBuffer(url) {
+  const res = await axios.get(url, { responseType: 'arraybuffer' });
+  return Buffer.from(res.data, 'binary');
+}
