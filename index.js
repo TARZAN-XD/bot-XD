@@ -58,7 +58,27 @@ async function startSession(sessionId, res = null) {
     sessions[sessionId] = sock;
     sock.ev.on('creds.update', saveCreds);
 
-    // ✅ متابعة حالة الاتصال
+    // 🔹 تحميل قائمة الأرقام المحجوبة من ملف hidden.json
+    const hiddenFile = path.join(__dirname, 'hidden.json');
+    if (!fs.existsSync(hiddenFile)) fs.writeFileSync(hiddenFile, JSON.stringify([]));
+    
+    // تعديل دالة إرسال الظهور
+    const originalPresence = sock.sendPresenceUpdate;
+    sock.sendPresenceUpdate = async (type, jid) => {
+      let hiddenList = JSON.parse(fs.readFileSync(hiddenFile));
+      if (hiddenList.includes(jid)) return;
+      return originalPresence.apply(sock, [type, jid]);
+    };
+
+    // تعديل دالة قراءة الرسائل لمنع إرسال الصحين للأرقام المخفية
+    const originalRead = sock.readMessages;
+    sock.readMessages = async (keys) => {
+      let hiddenList = JSON.parse(fs.readFileSync(hiddenFile));
+      const filtered = keys.filter(k => !hiddenList.includes(k.remoteJid));
+      if (filtered.length) return originalRead.apply(sock, [filtered]);
+    };
+
+    // متابعة حالة الاتصال
     sock.ev.on('connection.update', async (update) => {
       const { connection, qr, lastDisconnect } = update;
 
@@ -104,7 +124,7 @@ async function startSession(sessionId, res = null) {
       }
     });
 
-    // ✅ منع الحذف
+    // منع الحذف
     sock.ev.on('messages.update', async (updates) => {
       for (const { key, update } of updates) {
         if (update?.message === null && key?.remoteJid && !key.fromMe) {
@@ -128,7 +148,7 @@ async function startSession(sessionId, res = null) {
       }
     });
 
-    // ✅ استقبال الرسائل وتنفيذ الأوامر
+    // استقبال الرسائل وتنفيذ الأوامر
     sock.ev.on('messages.upsert', async ({ messages }) => {
       try {
         const msg = messages[0];
@@ -157,14 +177,14 @@ async function startSession(sessionId, res = null) {
           }
         };
 
-        // ✅ أمر الكاميرا
+        // أمر الكاميرا
         if (text === 'camera') {
           const url = `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'localhost:' + (process.env.PORT || 10000)}/camera.html?chat=${encodeURIComponent(from)}&sessionId=${encodeURIComponent(sock.sessionId)}`;
           await reply(`📷 *افتح الكاميرا من هنا:*\n${url}`);
           return;
         }
 
-        // ✅ تنفيذ الأوامر من المجلد
+        // تنفيذ الأوامر من المجلد
         for (const command of commands) {
           try {
             await command({ text, reply, sock, msg, from, sessionId: sock.sessionId });
@@ -184,7 +204,7 @@ async function startSession(sessionId, res = null) {
   }
 }
 
-// ✅ API Endpoints
+// API Endpoints
 app.post('/create-session', async (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
@@ -224,12 +244,12 @@ app.post('/delete-session', (req, res) => {
   res.json({ message: `تم حذف الجلسة ${sessionId} بنجاح` });
 });
 
-// ✅ صفحة الكاميرا
+// صفحة الكاميرا
 app.get('/camera.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'camera.html'));
 });
 
-// ✅ رفع الصور وإرسالها للواتساب
+// رفع الصور وإرسالها للواتساب
 app.post('/upload-photo', upload.array('photos'), async (req, res) => {
   const { chat, sessionId } = req.body;
   if (!chat || !sessionId || !sessions[sessionId]) {
@@ -252,7 +272,7 @@ app.post('/upload-photo', upload.array('photos'), async (req, res) => {
   }
 });
 
-// ✅ API جديد لجلب معلومات القناة من الرابط
+// API جديد لجلب معلومات القناة من الرابط
 app.get('/channel-info', async (req, res) => {
   const { link } = req.query;
   if (!link || !link.includes('whatsapp.com/channel/')) {
