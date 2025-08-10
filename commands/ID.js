@@ -72,16 +72,26 @@ async function installHooksIfNeeded(sock) {
     }
   });
 
-  // رسالة ترحيب مع صورة بروفايل العضو الجديد مع عرض اسمه الحقيقي بدل الرقم
+  // رسالة ترحيب مع اسم العضو الحقيقي من ملفه الشخصي
   sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
     if (action === "add") {
       const meta = await sock.groupMetadata(id);
       const groupName = meta.subject;
+
       for (let user of participants) {
-        // البحث عن بيانات العضو في بيانات المجموعة لجلب اسمه
-        const member = meta.participants.find(p => p.id === user);
-        // اسم العرض في المجموعة أو رقم الجوال إذا الاسم غير متوفر
-        const displayName = member?.notify || member?.vname || member?.name || user.split("@")[0];
+        let displayName = user.split("@")[0]; // اسم افتراضي هو الرقم
+
+        try {
+          // جلب بيانات الملف الشخصي للعضو من واتساب
+          const contact = await sock.fetchContact(user);
+          if (contact && contact.notify) {
+            displayName = contact.notify;
+          } else if (contact && contact.name) {
+            displayName = contact.name;
+          }
+        } catch (err) {
+          // في حالة الخطأ نكتفي بالرقم فقط
+        }
 
         let pfpUrl = null;
         try {
