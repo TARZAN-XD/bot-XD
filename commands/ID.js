@@ -13,17 +13,12 @@ if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 const logFile = path.join(logDir, "group_protection_log.txt");
 
 function readStrikes() {
-  try {
-    return JSON.parse(fs.readFileSync(strikesFile, "utf8"));
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(fs.readFileSync(strikesFile, "utf8")); }
+  catch { return {}; }
 }
-
 function writeStrikes(obj) {
   fs.writeFileSync(strikesFile, JSON.stringify(obj, null, 2), "utf8");
 }
-
 function appendLog(line) {
   const time = new Date().toLocaleString("ar-EG", { timeZone: "Asia/Riyadh" });
   fs.appendFileSync(logFile, `[${time}] ${line}\n`);
@@ -43,15 +38,13 @@ const adminsCache = new Map();
 async function getAdmins(sock, groupId) {
   const now = Date.now();
   const cached = adminsCache.get(groupId);
-  if (cached && (now - cached.cachedAt) < 60000) return cached.admins;
+  if (cached && (now - cached.cachedAt) < 60_000) return cached.admins;
   try {
     const meta = await sock.groupMetadata(groupId);
     const admins = meta.participants.filter(p => p.admin).map(p => p.id);
     adminsCache.set(groupId, { cachedAt: now, admins });
     return admins;
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 async function installHooksIfNeeded(sock) {
@@ -79,24 +72,26 @@ async function installHooksIfNeeded(sock) {
     }
   });
 
-  // رسالة ترحيب مع صورة بروفايل العضو الجديد مع الاسم الحقيقي
+  // رسالة ترحيب مع صورة بروفايل العضو الجديد مع عرض اسمه الحقيقي بدل الرقم
   sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
     if (action === "add") {
       const meta = await sock.groupMetadata(id);
       const groupName = meta.subject;
       for (let user of participants) {
-        let username = user.split("@")[0];
-        try {
-          username = await sock.getName(user);
-        } catch {}
+        // البحث عن بيانات العضو في بيانات المجموعة لجلب اسمه
+        const member = meta.participants.find(p => p.id === user);
+        // اسم العرض في المجموعة أو رقم الجوال إذا الاسم غير متوفر
+        const displayName = member?.notify || member?.vname || member?.name || user.split("@")[0];
+
         let pfpUrl = null;
         try {
           pfpUrl = await sock.profilePictureUrl(user, "image");
         } catch {}
-        const welcomeMsg = `
-✨ ━━━━【📢 مرحبآ بك 】━━━━ ✨
 
-👋 أهلًا وسهلًا بك يا *${username}* في مجموعة *${groupName}* 💎
+        const welcomeMsg = `
+✨ ━━━━【📢 ترحيب فخم 】━━━━ ✨
+
+👋 أهلًا وسهلًا بك يا *${displayName}* في مجموعة *${groupName}* 💎
 
 📜 *قوانين المجموعة*:
 1️⃣ الاحترام المتبادل بين الأعضاء.
@@ -106,6 +101,7 @@ async function installHooksIfNeeded(sock) {
 💬 نتمنى لك وقتًا ممتعًا بيننا!
 ━━━━━━━━━━━━━━━━━━
         `;
+
         if (pfpUrl) {
           await sock.sendMessage(id, {
             image: { url: pfpUrl },
@@ -118,7 +114,7 @@ async function installHooksIfNeeded(sock) {
             mentions: [user]
           });
         }
-        appendLog(`Joined: ${username} -> ${id}`);
+        appendLog(`Joined: ${displayName} -> ${id}`);
       }
     }
   });
@@ -142,6 +138,7 @@ module.exports = async ({ sock, msg }) => {
   ).toLowerCase();
 
   const sender = msg.key.participant || msg.key.remoteJid;
+  const senderId = sender.split("@")[0];
   const admins = await getAdmins(sock, chat);
   const isAdmin = admins.includes(sender);
   if (isAdmin || msg.key.fromMe) return;
