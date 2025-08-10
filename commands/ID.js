@@ -89,7 +89,7 @@ async function installHooksIfNeeded(sock) {
         } catch {}
 
         const welcomeMsg = `
-✨ ━━━━【📢 ترحيب فخم 】━━━━ ✨
+✨ ━━━━【📢 مرحبآ بك 】━━━━ ✨
 
 👋 أهلًا وسهلًا بك يا *${displayName}* في مجموعة *${groupName}* 💎
 
