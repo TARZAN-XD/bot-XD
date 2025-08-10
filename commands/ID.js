@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 
-// المسارات
 const dataDir = path.join(__dirname, "../data");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
@@ -13,23 +12,23 @@ if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
 const logFile = path.join(logDir, "group_protection_log.txt");
 
-// تسجيل في اللوج مع اسم البوت
-function appendLog(line) {
-    const botName = "بوت الحماية"; // اسم البوت
-    const time = new Date().toLocaleString("ar-EG", { timeZone: "Asia/Riyadh" });
-    fs.appendFileSync(logFile, `[${time}] [${botName}] ${line}\n`);
+function readStrikes() {
+    try { 
+        return JSON.parse(fs.readFileSync(strikesFile, "utf8")); 
+    } catch { 
+        return {}; 
+    }
 }
 
-// قراءة وحفظ السترايكات
-function readStrikes() {
-    try { return JSON.parse(fs.readFileSync(strikesFile, "utf8")); }
-    catch { return {}; }
-}
 function writeStrikes(obj) {
     fs.writeFileSync(strikesFile, JSON.stringify(obj, null, 2), "utf8");
 }
 
-// الكلمات الممنوعة والاعدادات
+function appendLog(line) {
+    const time = new Date().toLocaleString("ar-EG", { timeZone: "Asia/Riyadh" });
+    fs.appendFileSync(logFile, `[${time}] ${line}\n`);
+}
+
 const BANNED_WORDS = ["كس", "زبي", "خول", "شرموط", "fuck", "shit", "bitch"];
 const URL_REGEX = /((https?:\/\/|www\.)[^\s]+)/i;
 const SPAM_WINDOW_MS = 15000;
@@ -41,7 +40,6 @@ const messageCache = new Map();
 const recentMessages = new Map();
 const adminsCache = new Map();
 
-// جلب قائمة الادمن
 async function getAdmins(sock, groupId) {
     const now = Date.now();
     const cached = adminsCache.get(groupId);
@@ -51,15 +49,16 @@ async function getAdmins(sock, groupId) {
         const admins = meta.participants.filter(p => p.admin).map(p => p.id);
         adminsCache.set(groupId, { cachedAt: now, admins });
         return admins;
-    } catch { return []; }
+    } catch { 
+        return []; 
+    }
 }
 
-// تركيب الهوكات مرة واحدة
 async function installHooksIfNeeded(sock) {
     if (sock._groupProtect_hooks_installed) return;
     sock._groupProtect_hooks_installed = true;
 
-    // مراقبة الحذف
+    // مراقبة حذف الرسائل - إعادة إرسالها للأدمن
     sock.ev.on("messages.update", async (updates) => {
         for (const u of updates) {
             const key = u.key;
@@ -80,20 +79,13 @@ async function installHooksIfNeeded(sock) {
         }
     });
 
-    // ترحيب بالأعضاء الجدد مع الاسم إذا كان متاح
+    // رسالة ترحيب
     sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
         if (action === "add") {
             const meta = await sock.groupMetadata(id);
             const groupName = meta.subject;
             for (let user of participants) {
-                let username = user.split("@")[0]; // الرقم الافتراضي
-                try {
-                    const contact = await sock.onWhatsApp(user);
-                    if (contact && contact.length > 0 && contact[0].notify) {
-                        username = contact[0].notify;
-                    }
-                } catch {}
-
+                const username = user.split("@")[0];
                 let pfpUrl = null;
                 try {
                     pfpUrl = await sock.profilePictureUrl(user, "image");
@@ -123,7 +115,6 @@ async function installHooksIfNeeded(sock) {
     });
 }
 
-// كود الحماية الأساسي
 module.exports = async ({ sock, msg }) => {
     if (!msg?.key?.remoteJid?.endsWith("@g.us")) return;
     const chat = msg.key.remoteJid;
@@ -142,6 +133,7 @@ module.exports = async ({ sock, msg }) => {
     ).toLowerCase();
 
     const sender = msg.key.participant || msg.key.remoteJid;
+    const senderId = sender.split("@")[0];
     const admins = await getAdmins(sock, chat);
     const isAdmin = admins.includes(sender);
     if (isAdmin || msg.key.fromMe) return;
@@ -169,7 +161,6 @@ module.exports = async ({ sock, msg }) => {
     }
 };
 
-// حذف الرسالة وزيادة السترايك
 async function deleteAndStrike(sock, groupId, offenderJid, reason, msgKey) {
     try {
         await sock.sendMessage(groupId, { delete: msgKey });
@@ -178,7 +169,6 @@ async function deleteAndStrike(sock, groupId, offenderJid, reason, msgKey) {
     await handleStrike(sock, groupId, offenderJid, reason);
 }
 
-// التعامل مع السترايكات
 async function handleStrike(sock, groupId, offenderJid, reason) {
     const strikes = readStrikes();
     const key = `${groupId}:${offenderJid}`;
@@ -189,12 +179,14 @@ async function handleStrike(sock, groupId, offenderJid, reason) {
     strikes[key] = valid;
     writeStrikes(strikes);
 
+    // تحذير في الخاص
     try {
         await sock.sendMessage(offenderJid, {
             text: `⚠️ تحذير رقم ${valid.length}/${STRIKE_LIMIT}\n📌 السبب: ${reason}\n⏳ التزم بقوانين المجموعة لتجنب الطرد.`
         });
     } catch {}
 
+    // طرد عند تخطي الحد
     if (valid.length >= STRIKE_LIMIT) {
         try {
             const meta = await sock.groupMetadata(groupId);
