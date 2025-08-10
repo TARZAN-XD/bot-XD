@@ -72,17 +72,23 @@ async function installHooksIfNeeded(sock) {
     }
   });
 
-  // رسالة ترحيب مع صورة بروفايل العضو الجديد
+  // رسالة ترحيب مع صورة بروفايل العضو الجديد والاسم الحقيقي
   sock.ev.on("group-participants.update", async ({ id, participants, action }) => {
     if (action === "add") {
       const meta = await sock.groupMetadata(id);
       const groupName = meta.subject;
       for (let user of participants) {
-        const username = user.split("@")[0];
+        // جلب الاسم الحقيقي للعضو
+        let username = user.split("@")[0];
+        try {
+          username = await sock.getName(user);
+        } catch {}
+
         let pfpUrl = null;
         try {
           pfpUrl = await sock.profilePictureUrl(user, "image");
         } catch {}
+
         const welcomeMsg = `
 ✨ ━━━━【📢 ترحيب فخم 】━━━━ ✨
 
@@ -96,6 +102,7 @@ async function installHooksIfNeeded(sock) {
 💬 نتمنى لك وقتًا ممتعًا بيننا!
 ━━━━━━━━━━━━━━━━━━
         `;
+
         if (pfpUrl) {
           await sock.sendMessage(id, {
             image: { url: pfpUrl },
@@ -201,4 +208,4 @@ async function handleStrike(sock, groupId, offenderJid, reason) {
       }
     } catch {}
   }
-}
+      }
