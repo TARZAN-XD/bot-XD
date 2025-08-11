@@ -1,93 +1,50 @@
-const ytdl = require('ytdl-core');
-const axios = require('axios');
+// commands/pinterest.js
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-module.exports = async ({ sock, msg, text, reply, from }) => {
-  // أوامر البدء للكلمة المفتاحية
-  if (!text.startsWith('youtube') && !text.startsWith('yt') && !text.startsWith('yt-dl')) return;
+module.exports = async ({ text, reply, sock, from, msg }) => {
+    if (!text.startsWith("pinterest ")) return;
 
-  const parts = text.trim().split(' ');
-  if (parts.length < 2) {
-    return reply(`❌ يرجى إدخال رابط يوتيوب أو كلمات للبحث.\n
-مثال:
-• youtube https://www.youtube.com/watch?v=xxxx
-• yt https://youtu.be/xxxx
-• yt-dl كلمات البحث`);
-  }
-
-  const query = parts.slice(1).join(' ').trim();
-
-  await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } });
-
-  try {
-    if (ytdl.validateURL(query)) {
-      // تحميل فيديو من رابط مباشر
-      await downloadYouTubeVideo(query, reply, sock, msg, from);
-    } else {
-      // البحث ثم تحميل أول نتيجة
-      await searchAndDownloadYouTube(query, reply, sock, msg, from);
+    const url = text.split(" ")[1];
+    if (!url || !url.includes("pinterest.com")) {
+        return reply("⚠️ أرسل رابط Pinterest صحيح\nمثال: pinterest https://pin.it/xxxxxx");
     }
-  } catch (error) {
-    console.error('❌ خطأ عام:', error);
-    await reply('❌ حدث خطأ أثناء تنفيذ العملية. حاول لاحقًا.');
-    await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
-  }
+
+    try {
+        reply("⏳ جارِ استخراج الرابط من Pinterest...");
+
+        const { data } = await axios.get(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            }
+        });
+
+        const $ = cheerio.load(data);
+
+        // البحث عن فيديو أو صورة
+        let mediaUrl =
+            $('meta[property="og:video"]').attr("content") ||
+            $('meta[property="og:image"]').attr("content");
+
+        if (!mediaUrl) {
+            return reply("❌ لم أستطع العثور على وسائط في هذا الرابط.");
+        }
+
+        // إرسال الوسائط
+        if (mediaUrl.endsWith(".mp4")) {
+            await sock.sendMessage(from, {
+                video: { url: mediaUrl },
+                caption: "🎥 تم التحميل من Pinterest بنجاح ✅"
+            }, { quoted: msg });
+        } else {
+            await sock.sendMessage(from, {
+                image: { url: mediaUrl },
+                caption: "🖼️ تم التحميل من Pinterest بنجاح ✅"
+            }, { quoted: msg });
+        }
+
+    } catch (err) {
+        console.error(err);
+        reply("❌ حدث خطأ أثناء محاولة التحميل من Pinterest.");
+    }
 };
-
-async function downloadYouTubeVideo(url, reply, sock, msg, from) {
-  try {
-    await reply(`📥 جاري تحميل فيديو من YouTube ...`);
-
-    // الحصول على معلومات الفيديو
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title || "بدون عنوان";
-
-    // تنزيل الفيديو كتيار Stream مع اختيار جودة (مثلاً 18 = mp4 360p)
-    const stream = ytdl(url, { quality: '18' });
-
-    // تجميع البيانات في Buffer
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    const videoBuffer = Buffer.concat(chunks);
-
-    // إرسال الفيديو عبر واتساب
-    await sock.sendMessage(from, {
-      video: videoBuffer,
-      caption: `🎬 ${title}\n> تحميل بواسطة طرزان الواقدي`
-    }, { quoted: msg });
-
-    await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
-  } catch (err) {
-    console.error('❌ فشل تحميل فيديو يوتيوب:', err);
-    await reply('❌ فشل تحميل فيديو يوتيوب.');
-  }
-}
-
-async function searchAndDownloadYouTube(query, reply, sock, msg, from) {
-  try {
-    await reply(`🔍 جاري البحث عن: "${query}" ...`);
-
-    // البحث عن فيديو باستخدام مكتبة yt-search
-    const ytSearch = require('yt-search');
-    const results = await ytSearch(query);
-
-    if (!results || !results.videos || results.videos.length === 0) {
-      return reply('❌ لم يتم العثور على فيديوهات.');
-    }
-
-    // اختر أول فيديو
-    const video = results.videos[0];
-    const url = video.url;
-    const title = video.title;
-
-    await reply(`⬇️ جاري تحميل أول فيديو من البحث: ${title} ...`);
-
-    // حمل الفيديو بواسطة الدالة السابقة
-    await downloadYouTubeVideo(url, reply, sock, msg, from);
-
-  } catch (err) {
-    console.error('❌ فشل تحميل الفيديو من البحث:', err);
-    await reply('❌ فشل تحميل الفيديو من البحث.');
-  }
-}
