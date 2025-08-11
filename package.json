@@ -23,6 +23,7 @@
     "wa-sticker-formatter": "^4.4.4",
     "canvas": "^2.11.2",
     "axios": "^1.7.7",
+    "cheerio": "^1.0.0-rc.12", 
     "google-play-scraper": "^9.0.3",
     "@google/generative-ai": "^0.7.0",
     "form-data": "^4.0.0",
