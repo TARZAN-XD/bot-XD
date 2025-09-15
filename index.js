@@ -51,17 +51,18 @@ async function startSession(sessionId, res = null) {
       version,
       auth: state,
       printQRInTerminal: false,
-      generateHighQualityLinkPreview: true
+      generateHighQualityLinkPreview: true,
+      markOnlineOnConnect: false // ✅ لتجنب الظهور "متصل الآن"
     });
 
     sock.sessionId = sessionId;
     sessions[sessionId] = sock;
     sock.ev.on('creds.update', saveCreds);
 
-    // 🔹 تحميل قائمة الأرقام المحجوبة من ملف hidden.json
+    // 🔹 تحميل قائمة الأرقام المحجوبة
     const hiddenFile = path.join(__dirname, 'hidden.json');
     if (!fs.existsSync(hiddenFile)) fs.writeFileSync(hiddenFile, JSON.stringify([]));
-    
+
     // تعديل دالة إرسال الظهور
     const originalPresence = sock.sendPresenceUpdate;
     sock.sendPresenceUpdate = async (type, jid) => {
@@ -70,7 +71,7 @@ async function startSession(sessionId, res = null) {
       return originalPresence.apply(sock, [type, jid]);
     };
 
-    // تعديل دالة قراءة الرسائل لمنع إرسال الصحين للأرقام المخفية
+    // تعديل دالة قراءة الرسائل
     const originalRead = sock.readMessages;
     sock.readMessages = async (keys) => {
       let hiddenList = JSON.parse(fs.readFileSync(hiddenFile));
@@ -78,7 +79,7 @@ async function startSession(sessionId, res = null) {
       if (filtered.length) return originalRead.apply(sock, [filtered]);
     };
 
-    // متابعة حالة الاتصال
+    // متابعة الاتصال
     sock.ev.on('connection.update', async (update) => {
       const { connection, qr, lastDisconnect } = update;
 
@@ -89,9 +90,15 @@ async function startSession(sessionId, res = null) {
       }
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-        if (shouldReconnect) setTimeout(() => startSession(sessionId), 5000);
-        else delete sessions[sessionId];
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        if (shouldReconnect) {
+          console.log(`🔄 إعادة محاولة الاتصال بالجلسة ${sessionId}...`);
+          setTimeout(() => startSession(sessionId), 5000);
+        } else {
+          console.log(`🚫 تم تسجيل الخروج من الجلسة ${sessionId}`);
+          delete sessions[sessionId];
+        }
       }
 
       if (connection === 'open') {
@@ -110,7 +117,7 @@ async function startSession(sessionId, res = null) {
         try {
           await sock.sendMessage(selfId, {
             image: { url: 'https://b.top4top.io/p_3489wk62d0.jpg' },
-            caption: caption,
+            caption,
             footer: "🤖 طرزان الواقدي - بوت الذكاء الاصطناعي ⚔️",
             buttons: [
               { buttonId: "help", buttonText: { displayText: "📋 عرض الأوامر" }, type: 1 },
@@ -148,7 +155,7 @@ async function startSession(sessionId, res = null) {
       }
     });
 
-    // استقبال الرسائل وتنفيذ الأوامر
+    // استقبال الرسائل
     sock.ev.on('messages.upsert', async ({ messages }) => {
       try {
         const msg = messages[0];
@@ -184,7 +191,7 @@ async function startSession(sessionId, res = null) {
           return;
         }
 
-        // تنفيذ الأوامر من المجلد
+        // تنفيذ أوامر المجلد
         for (const command of commands) {
           try {
             await command({ text, reply, sock, msg, from, sessionId: sock.sessionId });
@@ -204,7 +211,7 @@ async function startSession(sessionId, res = null) {
   }
 }
 
-// API Endpoints
+// 🔹 API Endpoints
 app.post('/create-session', async (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) return res.json({ error: 'أدخل اسم الجلسة' });
@@ -249,7 +256,7 @@ app.get('/camera.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'camera.html'));
 });
 
-// رفع الصور وإرسالها للواتساب
+// رفع الصور
 app.post('/upload-photo', upload.array('photos'), async (req, res) => {
   const { chat, sessionId } = req.body;
   if (!chat || !sessionId || !sessions[sessionId]) {
@@ -272,7 +279,7 @@ app.post('/upload-photo', upload.array('photos'), async (req, res) => {
   }
 });
 
-// API جديد لجلب معلومات القناة من الرابط
+// جلب معلومات القناة
 app.get('/channel-info', async (req, res) => {
   const { link } = req.query;
   if (!link || !link.includes('whatsapp.com/channel/')) {
