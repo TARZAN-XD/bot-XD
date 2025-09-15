@@ -5,34 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🚀 نظام الإقتران - طرزان الواقدي</title>
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap');
+
     body {
         font-family: 'Cairo', sans-serif;
-        background: #0d1117;
+        background: linear-gradient(135deg, #0d1117, #1e1e2f, #161b22);
         color: #fff;
         display: flex;
         justify-content: center;
         align-items: center;
         min-height: 100vh;
         margin: 0;
+        animation: bgMove 10s ease infinite alternate;
     }
+
+    @keyframes bgMove {
+        from { background-position: left; }
+        to { background-position: right; }
+    }
+
     .container {
-        max-width: 400px;
-        background: #161b22;
-        border-radius: 12px;
-        padding: 20px;
+        max-width: 420px;
+        background: rgba(22, 27, 34, 0.95);
+        border-radius: 16px;
+        padding: 25px;
         text-align: center;
-        box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        box-shadow: 0 0 25px rgba(88,166,255,0.3);
+        animation: fadeIn 1.2s ease;
     }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
     h1 {
-        font-size: 22px;
-        margin-bottom: 10px;
+        font-size: 24px;
+        margin-bottom: 12px;
         color: #58a6ff;
+        text-shadow: 0 0 8px rgba(88,166,255,0.6);
     }
+
     p {
         color: #c9d1d9;
         font-size: 14px;
         margin-bottom: 15px;
     }
+
     input {
         width: 90%;
         padding: 10px;
@@ -41,51 +60,77 @@
         border: none;
         text-align: center;
         font-size: 16px;
+        background: #0d1117;
+        color: #fff;
+        outline: 1px solid #30363d;
+        transition: 0.3s;
     }
+    input:focus {
+        outline: 1px solid #58a6ff;
+        box-shadow: 0 0 6px #58a6ff;
+    }
+
     button {
         width: 95%;
         padding: 12px;
-        background: #238636;
+        background: linear-gradient(90deg,#238636,#2ea043);
         color: white;
         font-size: 16px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         margin: 10px 0;
         cursor: pointer;
         transition: 0.3s;
+        box-shadow: 0 0 10px rgba(35,134,54,0.4);
     }
     button:hover {
-        background: #2ea043;
+        background: linear-gradient(90deg,#2ea043,#3fb950);
+        transform: scale(1.03);
+        box-shadow: 0 0 15px rgba(35,134,54,0.6);
     }
+
     #qr img {
-        width: 200px;
+        width: 220px;
         margin-top: 15px;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 2px solid #58a6ff;
+        box-shadow: 0 0 15px rgba(88,166,255,0.5);
+        animation: fadeIn 0.8s ease;
     }
+
     .footer {
         margin-top: 15px;
         font-size: 12px;
         color: #8b949e;
     }
+
     .pair-section {
         display: none;
         margin-top: 20px;
+        animation: fadeIn 1s ease;
     }
+
     #pairCode {
         font-size: 20px;
         font-weight: bold;
         color: #58a6ff;
         margin-top: 10px;
+        text-shadow: 0 0 6px rgba(88,166,255,0.7);
     }
+
     .copy-btn {
         background: #444c56;
         color: #fff;
         font-size: 14px;
         margin-top: 8px;
-        padding: 8px;
+        padding: 8px 12px;
         border-radius: 6px;
         cursor: pointer;
+        transition: 0.3s;
+    }
+    .copy-btn:hover {
+        background: #596169;
+        transform: scale(1.05);
     }
 </style>
 </head>
